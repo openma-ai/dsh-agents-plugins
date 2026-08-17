@@ -2,7 +2,7 @@
 
 One dsh bridge kernel for portable [Agent Plugins](https://agent-plugins.org/), Codex plugins, Claude Code plugins, Pi packages, and future OpenCode package dialects.
 
-Canonical source: [openma-ai/dsh-agents-plugins-bridge](https://github.com/openma-ai/dsh-agents-plugins-bridge).
+Canonical source: [openma-ai/dsh-agents-plugins](https://github.com/openma-ai/dsh-agents-plugins).
 
 ## Install
 

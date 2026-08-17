@@ -5,11 +5,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/openma-ai/dsh-agents-plugins-bridge.git"
+    "url": "git+https://github.com/openma-ai/dsh-agents-plugins.git"
   },
-  "homepage": "https://github.com/openma-ai/dsh-agents-plugins-bridge#readme",
+  "homepage": "https://github.com/openma-ai/dsh-agents-plugins#readme",
   "bugs": {
-    "url": "https://github.com/openma-ai/dsh-agents-plugins-bridge/issues"
+    "url": "https://github.com/openma-ai/dsh-agents-plugins/issues"
   },
   "type": "module",
   "workspaces": [
