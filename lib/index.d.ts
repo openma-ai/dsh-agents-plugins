@@ -18,4 +18,5 @@ export { executePluginBridgeCommand } from './command.js';
 export { PluginBridgeManager } from './manager.js';
 export type { ActivationApproval, ActivationReview, LocalPluginDiscovery, PluginBridgeManagement, RegisteredMarketplaceDiscovery, } from './manager.js';
 export { PluginBridgeKernel as default } from './kernel.js';
+export { AgentPluginsGateway } from './ui-host.js';
 //# sourceMappingURL=index.d.ts.map

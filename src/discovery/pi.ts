@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { lstat, readFile, realpath } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { dirname, isAbsolute, join, resolve } from 'node:path'
@@ -138,8 +139,10 @@ function sourceEntry(value: unknown, index: number): string {
 }
 
 function candidateKey(scope: string, source: ParsedSource, canonicalRoot: string): string {
-  const identity = source.kind === 'local' ? canonicalRoot : source.identity
-  return `${scope}/${source.kind}/${encodeURIComponent(identity)}`
+  const identity = source.kind === 'local'
+    ? createHash('sha256').update(canonicalRoot).digest('hex')
+    : encodeURIComponent(source.identity)
+  return `${scope}/${source.kind}/${identity}`
 }
 
 /** Reads Pi's explicit settings registry; Pi has no marketplace catalog registry. */

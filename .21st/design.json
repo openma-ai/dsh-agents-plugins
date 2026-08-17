@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "project": {
+    "name": "@openma/dsh-agents-plugins-bridge",
+    "productType": "DSH settings extension",
+    "stack": ["React", "TypeScript", "Cordis slots", "CSS Modules"]
+  },
+  "sources": {
+    "tokens": ["DeepSeek Harness --dsw-* and --ds-* CSS variables"],
+    "components": ["DSH Plugin Inventory settings tab"],
+    "assets": [],
+    "instructions": []
+  },
+  "design": {
+    "colorMode": "inherited",
+    "colors": {},
+    "typography": {},
+    "spacing": {},
+    "radius": {},
+    "shadows": {},
+    "motion": {},
+    "density": "compact"
+  },
+  "components": {
+    "installed": [],
+    "preferredPrimitives": [],
+    "patterns": ["Settings Plugins tab", "two-column compact catalog", "inline status and diagnostics"]
+  },
+  "constraints": {
+    "must": [
+      "Register through settings.plugins.tab",
+      "Use existing DSH tokens and settings density",
+      "Keep loading, error, empty, and diagnostics states explicit",
+      "Support keyboard focus and reduced motion"
+    ],
+    "avoid": [
+      "Independent dashboard shell",
+      "Decorative gradients or glass effects",
+      "Actions without a Host API"
+    ]
+  },
+  "decisions": [
+    "Agent Plugins is an order-5 child tab inside Settings > Plugins, not a new top-level route."
+  ],
+  "evidence": [
+    "/Users/minimax/oos-proj/deepseek-harness/packages/client/ui-settings-plugin-inventory"
+  ],
+  "generatedAt": "2026-08-17T12:00:27.255Z"
+}

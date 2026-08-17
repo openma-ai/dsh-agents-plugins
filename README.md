@@ -2,7 +2,7 @@
 
 One dsh bridge kernel for portable [Agent Plugins](https://agent-plugins.org/), Codex plugins, Claude Code plugins, Pi packages, and future OpenCode package dialects.
 
-Canonical source: [openma-ai/dsh-agents-plugins](https://github.com/openma-ai/dsh-agents-plugins).
+Canonical source: [openma-ai/dsh-agents-plugins-bridge](https://github.com/openma-ai/dsh-agents-plugins-bridge).
 
 ## Install
 
@@ -11,6 +11,11 @@ The package is a dsh bundle. Installing it adds the kernel, format providers, ad
 ```sh
 dsh plugin --profile web add @openma/dsh-agents-plugins-bridge
 ```
+
+The Web profile also loads the bundle-owned
+`@openma/dsh-agents-plugins-bridge-ui` contribution. Its **Agent plugins** tab
+appears in Plugins settings after the Host Remote is ready; no separate UI
+installation is required.
 
 DSH composes plugins per profile. Install the bridge into each profile that
 should consume foreign plugins (replace `web` with that profile name). The Web
@@ -82,6 +87,8 @@ The shipped rows are intentionally granular:
 | skills / portable MCP / legacy MCP / hooks adapters | one dsh capability dialect each |
 | hook approval policy | re-inspection, digest calculation, and human review text |
 | runtime | durable install state and Loader transactions |
+| UI Host gateway | strict browser-safe Remote projection and mutations |
+| Web UI | installed, configured-marketplace, discovered-marketplace, and discovered-local views |
 | command | `/plugin-bridge` user operations |
 
 An MCP manifest expands again: every configured MCP server becomes its own `@deepseek-ai/dsh-mcp-client` row. One foreign bundle therefore never becomes one opaque universal runtime.

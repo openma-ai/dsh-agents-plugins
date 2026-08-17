@@ -62,5 +62,11 @@
     - id: plugin-bridge-runtime
       name: '@openma/dsh-agents-plugins-bridge/runtime'
 
+    - id: plugin-bridge-ui-host
+      name: '@openma/dsh-agents-plugins-bridge/ui-host'
+
+    - id: plugin-bridge-ui
+      name: '@openma/dsh-agents-plugins-bridge-ui'
+
     - id: plugin-bridge-command
       name: '@openma/dsh-agents-plugins-bridge/command'

@@ -151,7 +151,7 @@ test('Pi locator resolves npm, git, and local settings entries while isolating b
 
   const observation = await createPiInstalledPluginLocator({ settingsPath }).discover()
 
-  assert.deepEqual(observation.candidates, [
+  assert.deepEqual(observation.candidates.slice(0, 2), [
     {
       key: 'user/npm/%40scope%2Fnpm-pi',
       name: '@scope/npm-pi',
@@ -167,14 +167,18 @@ test('Pi locator resolves npm, git, and local settings entries while isolating b
       evidence: 'installed-registry',
       scope: 'user',
     },
-    {
-      key: `user/local/${encodeURIComponent(await realpath(localPackage))}`,
-      name: 'local-pi',
-      root: await realpath(localPackage),
-      evidence: 'installed-registry',
-      scope: 'user',
-    },
   ])
+  const local = observation.candidates[2]
+  assert.notEqual(local, undefined)
+  assert.match(local!.key, /^user\/local\/[a-f0-9]{64}$/u)
+  assert.doesNotMatch(local!.key, /%2F|%5C|local-pi/iu)
+  assert.deepEqual({ ...local, key: '<opaque>' }, {
+    key: '<opaque>',
+    name: 'local-pi',
+    root: await realpath(localPackage),
+    evidence: 'installed-registry',
+    scope: 'user',
+  })
   assert.equal(observation.diagnostics?.length, 3)
   assert.match(observation.diagnostics?.join('\n') ?? '', /broken-pi.*invalid/i)
   assert.match(observation.diagnostics?.join('\n') ?? '', /missing-pi.*cannot be inspected/i)

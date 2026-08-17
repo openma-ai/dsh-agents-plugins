@@ -27,3 +27,4 @@ export type {
   RegisteredMarketplaceDiscovery,
 } from './manager.js'
 export { PluginBridgeKernel as default } from './kernel.js'
+export { AgentPluginsGateway } from './ui-host.js'

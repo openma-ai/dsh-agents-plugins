@@ -1,0 +1,64 @@
+/** Simplified Chinese dictionary and key source of truth. */
+export declare const zh: {
+    tab: string;
+    title: string;
+    loading: string;
+    loadError: string;
+    retry: string;
+    mutationError: string;
+    rescan: string;
+    installed: string;
+    installedEmpty: string;
+    configuredMarketplaces: string;
+    marketplaceLocation: string;
+    add: string;
+    configuredEmpty: string;
+    discoveredMarketplaces: string;
+    discoveredMarketplacesEmpty: string;
+    discoveredLocal: string;
+    discoveredLocalEmpty: string;
+    rows: string;
+    protected: string;
+    unsupported: string;
+    enabled: string;
+    disabled: string;
+    foreignEnabled: string;
+    foreignDisabled: string;
+    enable: string;
+    disable: string;
+    install: string;
+    import: string;
+};
+export type PluginBridgeLocaleKey = keyof typeof zh;
+/** English dictionary checked against the Chinese key set. */
+export declare const en: {
+    tab: string;
+    title: string;
+    loading: string;
+    loadError: string;
+    retry: string;
+    mutationError: string;
+    rescan: string;
+    installed: string;
+    installedEmpty: string;
+    configuredMarketplaces: string;
+    marketplaceLocation: string;
+    add: string;
+    configuredEmpty: string;
+    discoveredMarketplaces: string;
+    discoveredMarketplacesEmpty: string;
+    discoveredLocal: string;
+    discoveredLocalEmpty: string;
+    rows: string;
+    protected: string;
+    unsupported: string;
+    enabled: string;
+    disabled: string;
+    foreignEnabled: string;
+    foreignDisabled: string;
+    enable: string;
+    disable: string;
+    install: string;
+    import: string;
+};
+//# sourceMappingURL=locales.d.ts.map

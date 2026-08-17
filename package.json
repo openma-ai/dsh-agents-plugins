@@ -5,13 +5,16 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/openma-ai/dsh-agents-plugins.git"
+    "url": "git+https://github.com/openma-ai/dsh-agents-plugins-bridge.git"
   },
-  "homepage": "https://github.com/openma-ai/dsh-agents-plugins#readme",
+  "homepage": "https://github.com/openma-ai/dsh-agents-plugins-bridge#readme",
   "bugs": {
-    "url": "https://github.com/openma-ai/dsh-agents-plugins/issues"
+    "url": "https://github.com/openma-ai/dsh-agents-plugins-bridge/issues"
   },
   "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
   "main": "./lib/index.js",
   "types": "./lib/index.d.ts",
   "exports": {
@@ -26,6 +29,10 @@
     "./runtime": {
       "types": "./lib/runtime.d.ts",
       "default": "./lib/runtime.js"
+    },
+    "./ui-host": {
+      "types": "./lib/ui-host.d.ts",
+      "default": "./lib/ui-host.js"
     },
     "./providers/agent-plugins-v1": {
       "types": "./lib/providers/agent-plugins-v1.d.ts",
@@ -110,18 +117,24 @@
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build:core": "tsc -p tsconfig.build.json",
+    "build:ui": "npm run build --workspace @openma/dsh-agents-plugins-bridge-ui",
+    "build": "npm run build:core && npm run build:ui",
     "prepare": "npm run build",
-    "test": "tsx --test tests/**/*.spec.ts",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "test:core": "tsx --test tests/**/*.spec.ts",
+    "test": "npm run test:core && npm run test --workspaces --if-present",
+    "typecheck:core": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "npm run typecheck:core && npm run typecheck --workspaces --if-present"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
-    "@deepseek-ai/dsh-commands": ">=0.0.1-rc.1 <1"
+    "@deepseek-ai/dsh-commands": ">=0.0.1-rc.1 <1",
+    "@deepseek-ai/dsh-typert-protocol": ">=0.1.0-rc.6 <1"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
-    "@deepseek-ai/dsh-commands": "0.0.1-rc.1",
+    "@deepseek-ai/dsh-commands": "^0.1.0-rc.7",
+    "@deepseek-ai/dsh-typert-protocol": "^0.1.0-rc.7",
     "@types/node": "^24.0.0",
     "tsx": "^4.20.0",
     "typescript": "^5.9.0"
@@ -138,6 +151,7 @@
     "plugin-bridge"
   ],
   "dependencies": {
+    "@openma/dsh-agents-plugins-bridge-ui": "0.1.0",
     "smol-toml": "^1.8.0"
   }
 }
