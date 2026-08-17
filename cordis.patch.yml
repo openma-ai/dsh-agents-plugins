@@ -1,0 +1,66 @@
+# One bundle, one bridge kernel. Platform and component capabilities stay as
+# separate Cordis rows so each contribution has its own lifecycle and failure.
+
+- insert:
+    - id: plugin-bridge-kernel
+      name: '@openma/dsh-agents-plugins-bridge'
+
+    - id: plugin-bridge-format-agent-plugins-v1
+      name: '@openma/dsh-agents-plugins-bridge/providers/agent-plugins-v1'
+
+    - id: plugin-bridge-format-codex-legacy
+      name: '@openma/dsh-agents-plugins-bridge/providers/codex-legacy'
+
+    - id: plugin-bridge-format-claude-code-legacy
+      name: '@openma/dsh-agents-plugins-bridge/providers/claude-code-legacy'
+
+    - id: plugin-bridge-format-pi-package
+      name: '@openma/dsh-agents-plugins-bridge/providers/pi-package'
+
+    - id: plugin-bridge-marketplace-codex
+      name: '@openma/dsh-agents-plugins-bridge/marketplaces/codex'
+
+    - id: plugin-bridge-marketplace-claude-code
+      name: '@openma/dsh-agents-plugins-bridge/marketplaces/claude-code'
+
+    - id: plugin-bridge-discovery-codex
+      name: '@openma/dsh-agents-plugins-bridge/discovery/codex'
+
+    - id: plugin-bridge-discovery-claude-code
+      name: '@openma/dsh-agents-plugins-bridge/discovery/claude-code'
+
+    - id: plugin-bridge-discovery-pi-user
+      name: '@openma/dsh-agents-plugins-bridge/discovery/pi'
+
+    - id: plugin-bridge-discovery-pi-project
+      name: '@openma/dsh-agents-plugins-bridge/discovery/pi'
+      config:
+        settingsPath: .pi/settings.json
+        scope: project
+
+    - id: plugin-bridge-discovery-codex-marketplaces
+      name: '@openma/dsh-agents-plugins-bridge/discovery/codex-marketplaces'
+
+    - id: plugin-bridge-discovery-claude-code-marketplaces
+      name: '@openma/dsh-agents-plugins-bridge/discovery/claude-code-marketplaces'
+
+    - id: plugin-bridge-adapter-skills
+      name: '@openma/dsh-agents-plugins-bridge/adapters/dsh-skills'
+
+    - id: plugin-bridge-adapter-mcp
+      name: '@openma/dsh-agents-plugins-bridge/adapters/dsh-mcp'
+
+    - id: plugin-bridge-adapter-agent-plugins-mcp
+      name: '@openma/dsh-agents-plugins-bridge/adapters/dsh-agent-plugins-mcp'
+
+    - id: plugin-bridge-adapter-hooks
+      name: '@openma/dsh-agents-plugins-bridge/adapters/dsh-hooks'
+
+    - id: plugin-bridge-policy-hook-user-approval
+      name: '@openma/dsh-agents-plugins-bridge/policies/hook-user-approval'
+
+    - id: plugin-bridge-runtime
+      name: '@openma/dsh-agents-plugins-bridge/runtime'
+
+    - id: plugin-bridge-command
+      name: '@openma/dsh-agents-plugins-bridge/command'

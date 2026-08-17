@@ -1,0 +1,143 @@
+{
+  "name": "@openma/dsh-agents-plugins-bridge",
+  "version": "0.1.0",
+  "description": "Portable Agent Plugins, Codex, Claude Code, and Pi plugin bridge for dsh",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/openma-ai/dsh-agents-plugins.git"
+  },
+  "homepage": "https://github.com/openma-ai/dsh-agents-plugins#readme",
+  "bugs": {
+    "url": "https://github.com/openma-ai/dsh-agents-plugins/issues"
+  },
+  "type": "module",
+  "main": "./lib/index.js",
+  "types": "./lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./command": {
+      "types": "./lib/command.d.ts",
+      "default": "./lib/command.js"
+    },
+    "./runtime": {
+      "types": "./lib/runtime.d.ts",
+      "default": "./lib/runtime.js"
+    },
+    "./providers/agent-plugins-v1": {
+      "types": "./lib/providers/agent-plugins-v1.d.ts",
+      "default": "./lib/providers/agent-plugins-v1.js"
+    },
+    "./providers/codex-legacy": {
+      "types": "./lib/providers/codex-legacy.d.ts",
+      "default": "./lib/providers/codex-legacy.js"
+    },
+    "./providers/claude-code-legacy": {
+      "types": "./lib/providers/claude-code-legacy.d.ts",
+      "default": "./lib/providers/claude-code-legacy.js"
+    },
+    "./providers/pi-package": {
+      "types": "./lib/providers/pi-package.d.ts",
+      "default": "./lib/providers/pi-package.js"
+    },
+    "./discovery/codex": {
+      "types": "./lib/discovery/codex.d.ts",
+      "default": "./lib/discovery/codex.js"
+    },
+    "./discovery/claude-code": {
+      "types": "./lib/discovery/claude-code.d.ts",
+      "default": "./lib/discovery/claude-code.js"
+    },
+    "./discovery/pi": {
+      "types": "./lib/discovery/pi.d.ts",
+      "default": "./lib/discovery/pi.js"
+    },
+    "./discovery/codex-marketplaces": {
+      "types": "./lib/discovery/codex-marketplaces.d.ts",
+      "default": "./lib/discovery/codex-marketplaces.js"
+    },
+    "./discovery/claude-code-marketplaces": {
+      "types": "./lib/discovery/claude-code-marketplaces.d.ts",
+      "default": "./lib/discovery/claude-code-marketplaces.js"
+    },
+    "./marketplaces": {
+      "types": "./lib/marketplaces/index.d.ts",
+      "default": "./lib/marketplaces/index.js"
+    },
+    "./marketplaces/codex": {
+      "types": "./lib/marketplaces/codex.d.ts",
+      "default": "./lib/marketplaces/codex.js"
+    },
+    "./marketplaces/claude-code": {
+      "types": "./lib/marketplaces/claude-code.d.ts",
+      "default": "./lib/marketplaces/claude-code.js"
+    },
+    "./adapters/dsh-skills": {
+      "types": "./lib/adapters/dsh-skills.d.ts",
+      "default": "./lib/adapters/dsh-skills.js"
+    },
+    "./adapters/dsh-mcp": {
+      "types": "./lib/adapters/dsh-mcp.d.ts",
+      "default": "./lib/adapters/dsh-mcp.js"
+    },
+    "./adapters/dsh-agent-plugins-mcp": {
+      "types": "./lib/adapters/dsh-agent-plugins-mcp.d.ts",
+      "default": "./lib/adapters/dsh-agent-plugins-mcp.js"
+    },
+    "./adapters/dsh-hooks": {
+      "types": "./lib/adapters/dsh-hooks.d.ts",
+      "default": "./lib/adapters/dsh-hooks.js"
+    },
+    "./policies/hook-user-approval": {
+      "types": "./lib/policies/hook-user-approval.d.ts",
+      "default": "./lib/policies/hook-user-approval.js"
+    },
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepare": "npm run build",
+    "test": "tsx --test tests/**/*.spec.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/dsh-commands": ">=0.0.1-rc.1 <1"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/dsh-commands": "0.0.1-rc.1",
+    "@types/node": "^24.0.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "dsh",
+    "agent-plugins",
+    "codex",
+    "claude-code",
+    "pi",
+    "plugin-bridge"
+  ],
+  "dependencies": {
+    "smol-toml": "^1.8.0"
+  }
+}
