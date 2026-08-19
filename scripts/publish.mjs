@@ -26,11 +26,9 @@ async function main() {
       process.stdout.write(`skip ${pkg.name}@${pkg.version}: already published\n`)
       continue
     }
-    const result = npm(
-      ['publish', '--access', 'public', '--provenance'],
-      join(root, pkg.directory),
-      'inherit',
-    )
+    const args = ['publish', '--access', 'public']
+    if (process.env.GITHUB_ACTIONS === 'true') args.push('--provenance')
+    const result = npm(args, join(root, pkg.directory), 'inherit')
     if (result.status !== 0) throw new Error(`publishing ${pkg.name}@${pkg.version} failed`)
   }
 }
