@@ -44,6 +44,7 @@ test('root package is the one-install bundle while its Web surface stays adaptiv
 
   const rows = await bundleRows(resolve(root, 'package.json'))
   const ids = new Set(rows.map(row => row.id))
+  const names = new Map(rows.map(row => [row.id, row.name]))
 
   for (const id of [
     'plugin-bridge-kernel',
@@ -54,7 +55,8 @@ test('root package is the one-install bundle while its Web surface stays adaptiv
     'plugin-bridge-adapter-prompt-commands',
     'plugin-bridge-runtime',
     'plugin-bridge-command',
-    'plugin-bridge-mcp-apps',
+    'plugin-bridge-mcp-apps-host',
+    'plugin-bridge-mcp-apps-web',
     'plugin-bridge-ui-auto',
   ]) {
     assert.ok(ids.has(id), `missing root bundle row ${id}`)
@@ -62,4 +64,12 @@ test('root package is the one-install bundle while its Web surface stays adaptiv
 
   assert.equal(ids.has('plugin-bridge-ui-host'), false)
   assert.equal(ids.has('plugin-bridge-ui'), false)
+  assert.equal(
+    names.get('plugin-bridge-mcp-apps-host'),
+    '@openma/dsh-agents-plugins-bridge/mcp-apps-host',
+  )
+  assert.equal(
+    names.get('plugin-bridge-mcp-apps-web'),
+    '@openma/dsh-agents-plugins-bridge/mcp-apps-web',
+  )
 })

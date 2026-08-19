@@ -49,6 +49,14 @@
       "types": "./lib/remote.d.ts",
       "default": "./lib/remote.js"
     },
+    "./mcp-apps-host": {
+      "types": "./lib/mcp-apps-host.d.ts",
+      "default": "./lib/mcp-apps-host.js"
+    },
+    "./mcp-apps-web": {
+      "types": "./lib/mcp-apps-web.d.ts",
+      "default": "./lib/mcp-apps-web.js"
+    },
     "./prompt-commands": {
       "types": "./lib/prompt-commands.d.ts",
       "default": "./lib/prompt-commands.js"
@@ -199,6 +207,7 @@
   "files": [
     "lib",
     "cordis.patch.yml",
+    "docs/images",
     "README.md",
     "LICENSE"
   ],

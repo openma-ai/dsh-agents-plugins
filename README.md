@@ -1,41 +1,95 @@
-# dsh Agents Plugins Bridge
+<h1 align="center">dsh Agents Plugins Bridge</h1>
 
-One dsh bridge kernel for portable [Agent Plugins](https://agent-plugins.org/), Codex plugins, Claude Code plugins, Pi packages, and future OpenCode package dialects.
+<p align="center">
+  Install Agent Plugins, Codex plugins, Claude Code plugins, and Pi packages in
+  DeepSeek Harness with one bridge package.
+</p>
 
-Canonical source: [openma-ai/dsh-agents-plugins-bridge](https://github.com/openma-ai/dsh-agents-plugins-bridge).
+<p align="center">
+  <a href="https://www.npmjs.com/package/@openma/dsh-agents-plugins-bridge"><img src="https://img.shields.io/npm/v/%40openma%2Fdsh-agents-plugins-bridge?logo=npm&color=cb3837" alt="npm version" /></a>
+  <a href="https://www.npmjs.com/package/@openma/dsh-agents-plugins-bridge"><img src="https://img.shields.io/npm/dm/%40openma%2Fdsh-agents-plugins-bridge" alt="npm downloads" /></a>
+  <a href="https://github.com/openma-ai/dsh-agents-plugins/actions/workflows/release.yml"><img src="https://github.com/openma-ai/dsh-agents-plugins/actions/workflows/release.yml/badge.svg" alt="release" /></a>
+  <img src="https://img.shields.io/node/v/%40openma%2Fdsh-agents-plugins-bridge" alt="Node.js 22.19+" />
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT" /></a>
+</p>
 
-## Install
+---
 
-The root package is the one-install dsh bundle. Installing it adds the kernel,
-format providers, adapters, command, and platform adapter rows. Use the same
-package for TUI and Web:
+The Bridge is a normal [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)
+bundle: one install entry, many small Cordis plugins. It detects foreign package
+formats, copies an explicitly selected package into profile-local storage, and
+materializes every supported capability as its own reversible DSH row. It does
+not emulate another agent runtime or hide everything behind one universal
+plugin.
+
+## Quick start
+
+Node.js 22.19 or newer is required. Install DSH first, then add the same Bridge
+package to every profile that should use foreign plugins:
 
 ```sh
-dsh plugin --profile tui add @openma/dsh-agents-plugins-bridge
-dsh plugin --profile web add @openma/dsh-agents-plugins-bridge
+npm install -g @deepseek-ai/dsh
+
+# Web management UI + shared Host capabilities
+dsh plugin --profile web add @openma/dsh-agents-plugins-bridge@latest
+dsh web
+
+# Terminal UI + the same shared Host capabilities
+dsh plugin --profile tui add @openma/dsh-agents-plugins-bridge@latest
+dsh --profile tui
 ```
 
-The bridge registers `/plugin-bridge` on the Host. DSH ACP projects that
-command, imported foreign slash commands, and user-invocable skills into the
-TUI command menu. Hooks, skills, commands, prompts, MCP connections, and the
-other backend rows therefore work without a browser UI or MCP Apps renderer.
+DSH profiles are separate compositions, so installing into `web` does not
+silently mutate `tui`, and vice versa. Users install only the root Bridge
+package. It carries the Web surface, the format adapters, and MCP Apps support
+through its own dependency graph.
 
-The root bundle carries the Web UI and theme packages as runtime dependencies;
-they are not standalone DSH bundles. Its adaptive surface row mounts the
-independent Host-gateway and Browser rows through DSH's Loader only when the Web
-Host seam exists. The **Agent plugins** tab therefore appears in Web Plugins
-settings, while TUI loads only the backend capabilities. Users install only the
-root package; the runtime package roots remain separate because DSH's browser
-module graph deliberately treats each client capability as one plugin.
+### Web
 
-DSH composes plugins per profile. Install the root bridge into each profile
-that should consume foreign plugins. It mounts the independent MCP Apps bundle
-as a nested plugin automatically, so Web profiles can render Apps exposed by
-foreign MCP servers without a second install. The MCP Apps package remains
-available for profiles that want that capability without the agent-plugin
-bridge.
+Open **Settings → Plugins → Agent plugins** to scan local Codex, Claude Code,
+and Pi state; register or import marketplaces; search catalogs; install a
+plugin; and inspect per-plugin capability rows and diagnostics.
 
-Then inspect the active bridge:
+![Agent Plugins management in DSH Web](docs/images/web-agent-plugins.jpg)
+
+The Web panel is a management surface over the Host runtime. Closing the panel
+does not stop installed hooks, commands, skills, MCP servers, or Pi extensions.
+
+### TUI
+
+TUI does not need a second Bridge implementation. `/plugin-bridge`, imported
+slash commands, and user-invocable skills are projected from the same Host
+composition through ACP and appear in the TUI's normal searchable command
+menu. Hooks, monitors, MCP connections, agents, LSP rows, and Pi extension
+lifecycle stay on the Host and continue to work without a browser.
+
+<p align="center">
+  <img src="docs/images/tui-command-menu.png" width="720"
+       alt="DSH TUI searchable command and skill menu" />
+</p>
+
+The screenshot comes from the
+[DeepSeek Harness TUI](https://github.com/openma-ai/deepseek-harness-tui), whose
+command menu is the surface Bridge commands and imported skills join.
+
+MCP Apps are the intentional exception: the shared MCP connection, tools,
+resources, prompts, and backend hooks work in TUI, but untrusted App HTML is
+rendered only by the Web sandbox. The terminal does not execute browser UI.
+
+| Capability | Web | TUI |
+|---|:---:|:---:|
+| Discover, import, install, enable, disable, uninstall | panel + command | command |
+| Skills, slash commands, prompt templates | yes | yes |
+| Codex and Claude Code hooks | yes | yes |
+| MCP tools, resources, prompts, and server lifecycle | yes | yes |
+| Claude agents, output styles, monitors, and LSP | yes | yes |
+| Pi extensions, tools, commands, skills, and lifecycle | yes | yes |
+| Foreign browser themes | yes | no |
+| MCP Apps HTML/AppBridge renderer | yes | no |
+
+## Use the Bridge
+
+Inspect the active Bridge and read-only discovery results:
 
 ```text
 /plugin-bridge
@@ -44,7 +98,8 @@ Then inspect the active bridge:
 /plugin-bridge marketplace discover
 ```
 
-Add a local marketplace directory or a GitHub repository, then install one entry:
+Add a local marketplace directory or GitHub repository, then install one
+catalog entry:
 
 ```text
 /plugin-bridge marketplace add /absolute/path/to/marketplace
@@ -53,7 +108,7 @@ Add a local marketplace directory or a GitHub repository, then install one entry
 /plugin-bridge install deployment-tools@company-tools
 ```
 
-Existing foreign-agent state can be imported explicitly as well:
+Import state that another agent has already registered locally:
 
 ```text
 /plugin-bridge discover
@@ -62,13 +117,43 @@ Existing foreign-agent state can be imported explicitly as well:
 /plugin-bridge marketplace import claude-code-registered-marketplaces:company-tools
 ```
 
-Both discovery commands are read-only. Import copies the selected package or local catalog into profile-local bridge storage before detection; it never activates code from the foreign agent's directory in place. Plugin import then uses the same format detection, component adapters, Loader transaction, rollback, and durable state as a marketplace install.
+Discovery is read-only. Import first copies the selected package or catalog
+into profile-local Bridge storage; foreign agent directories are never executed
+or modified in place. Install and import then share the same format detection,
+component adapters, Loader transaction, rollback, and durable state.
 
-The install command copies the selected package into profile-local bridge storage, detects its format, materializes its supported components as independent dsh Loader rows, and commits the row plan atomically. Skills, MCP rows, Pi extensions, and Codex and Claude Code hooks activate immediately because explicit import plus enable is their execution-consent boundary. A restart restores the active subset of the exact plan. `disable` removes the live rows while retaining the package, `enable` restores eligible rows, and `uninstall` moves its package copy into the bridge trash directory.
+`disable` removes live rows but keeps the copied package, `enable` restores the
+eligible stored plan, and `uninstall` moves the package copy into profile-local
+trash.
 
 ## Architecture
 
-There is one installation and lifecycle kernel. Platforms extend it through six reversible registries:
+The layout follows DSH's standard plugin shape:
+
+```text
+root bundle patch
+  ├─ kernel + one provider/locator/adapter per capability dialect
+  ├─ runtime + /plugin-bridge command
+  ├─ package-owned Web gateway/client wrappers
+  └─ package-owned MCP Apps Host/Web wrappers
+       └─ resolve dependency from Bridge's graph → Loader import → ctx.plugin
+
+installed foreign package
+  └─ normalized components
+       ├─ skill row
+       ├─ MCP connection row(s)
+       ├─ hook row(s)
+       ├─ command / agent / monitor row(s)
+       └─ Pi extension row(s)
+```
+
+Package-owned wrapper entries are important under pnpm: the profile resolves
+only `@openma/dsh-agents-plugins-bridge/*`; each wrapper resolves its runtime
+from the Bridge package's own dependency graph, imports it through DSH's Loader,
+and mounts it as a child Cordis plugin. Transitive dependency hoisting is never
+part of the runtime contract.
+
+The lifecycle kernel exposes six reversible registries:
 
 ```text
 MarketplaceProvider   discovers marketplace catalogs and resolves package sources
@@ -79,29 +164,22 @@ MarketplaceRegistrationLocator observes one agent's registered catalogs
 ActivationPolicy      inspects and gates rows that require explicit user trust
 ```
 
-The bundle never mounts one universal plugin runtime. A successful installation is compiled into explicit rows such as skill provider, MCP connection, hook dialect bridge, context contribution, or Web/TUI client extension. Each row can load, fail, reload, disable, and uninstall independently.
+Every successful installation compiles to explicit rows. Each capability can
+load, fail, reload, disable, and uninstall independently. An MCP manifest
+expands again so every configured server owns its own
+`@deepseek-ai/dsh-mcp-client` row.
 
-MCP tools, resources, prompts, and Apps share the same MCP connection. They are separate consumers of that connection, rather than separate server processes. The [`@openma/dsh-mcp-apps`](https://github.com/openma-ai/dsh-mcp-apps) bundle composes its Host and browser renderer as independent plugins; this bridge contributes the server connection row they consume. A Codex registered App is the exception at the foreign-host boundary: its relay row owns one Codex app-server process because the connection and OAuth lifecycle remain owned by Codex. Hook rows mount Bridge-owned Host plugins; each Host nests dsh's official Codex or Claude Code hook dialect plugin with `ctx.plugin`, so Web and TUI share the same lifecycle and dependency closure.
+MCP tools, resources, prompts, and Apps reuse one MCP SDK connection. The
+Bridge includes the Host and Web halves from
+[`@openma/dsh-mcp-apps`](https://github.com/openma-ai/dsh-mcp-apps) through two
+independent package-owned wrappers. A Codex registered App is the foreign-host
+exception: its relay owns one Codex app-server process because Codex still owns
+that connection and OAuth lifecycle.
 
-The shipped rows are intentionally granular:
-
-| Row | Responsibility |
-|---|---|
-| kernel | reversible provider registries and deterministic detection |
-| Agent Plugins / Codex / Claude / Pi format providers | one package dialect each |
-| Codex / Claude marketplace providers | one catalog dialect each |
-| Codex / Claude / Pi installed-plugin locators | one local state dialect each |
-| Codex / Claude marketplace-registration locators | one registration state dialect each |
-| skills / commands / prompts / themes / LSP / MCP / Codex registered Apps / hooks / Claude agents / output styles / monitors adapters | one dsh capability dialect each |
-| foreign-theme client | registers compiled themes on the Web `theme` seam and disposes them with the owning row |
-| Codex App MCP relay | filters one declared connection and proxies its tools and resources through the public Codex app-server protocol |
-| Codex App tool approval policy | lets declared read-only tools pass and asks through DSH before writes; unknown future tools fail closed |
-| runtime | durable install state and Loader transactions |
-| UI Host gateway | strict browser-safe Remote projection and mutations |
-| Web UI | installed, configured-marketplace, discovered-marketplace, and discovered-local views |
-| command | `/plugin-bridge` user operations |
-
-An MCP manifest expands again: every configured MCP server becomes its own `@deepseek-ai/dsh-mcp-client` row. One foreign bundle therefore never becomes one opaque universal runtime.
+Hook rows use the same dependency-wrapper pattern for DSH's official Codex and
+Claude Code hook plugins. The wrapper row owns the nested plugin fiber, so Web
+and TUI share one Host lifecycle without requiring the profile to install or
+hoist those runtime packages separately.
 
 ## Portable package core
 
@@ -192,6 +270,22 @@ Imported Claude output styles expose their generated selection commands in the n
 - Foreign executable modules are never run during discovery. Explicit import plus enable is the execution consent boundary; Pi extensions and Codex and Claude Code hooks do not add a duplicate digest-approval step.
 - Registration, row activation, disable, and disposal are reversible.
 - Uninstalled package copies move to profile-local trash rather than being recursively deleted.
+
+## Related projects
+
+| Project | Use it for |
+|---|---|
+| [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) | The everything-is-a-plugin Host, Loader, Web surface, and capability services |
+| [DeepSeek Harness TUI](https://github.com/openma-ai/deepseek-harness-tui) | Terminal-native ACP client; receives Bridge commands and skills from the shared Host composition |
+| [DeepSeek Harness ACP](https://github.com/openma-ai/deepseek-harness-acp) | Exposes the same Host commands, skills, tools, and sessions to ACP clients such as Zed |
+| [dsh-mcp-apps](https://github.com/openma-ai/dsh-mcp-apps) | Standalone MCP Apps Host and sandboxed Web renderer; already included by this Bridge |
+| [Agent Plugins](https://agent-plugins.org/) | Portable plugin manifest, skills, and MCP package standard |
+| [Pi packages](https://pi.dev/packages) | Pi package gallery and extension ecosystem |
+
+Install the Bridge when the goal is to consume Codex, Claude Code, Pi, or
+portable Agent Plugins. Install `@openma/dsh-mcp-apps` directly only when a
+profile needs MCP Apps rendering without the foreign-plugin compatibility
+layer.
 
 ## Development
 
