@@ -94,3 +94,8 @@
     # children, preserving both faces as independent plugin entries.
     - id: plugin-bridge-ui-auto
       name: '@openma/dsh-agents-plugins-bridge/ui-auto'
+
+    # MCP Apps stays its own nested plugin kernel. Installing the Bridge mounts
+    # it automatically; installing dsh-mcp-apps directly remains supported.
+    - id: plugin-bridge-mcp-apps
+      name: '@openma/dsh-mcp-apps'

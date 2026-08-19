@@ -8,13 +8,12 @@ capability sections: installed plugins, configured marketplaces, discovered
 marketplace registrations, and discovered local Codex, Claude Code, or Pi
 plugins.
 
-Install this Web surface beside the platform-neutral root bridge bundle. TUI
-profiles install only the root bridge and therefore do not mount these rows.
+This is a runtime package of the root Bridge bundle, not a standalone DSH
+bundle. Install only the public root package; it brings this Web surface into
+Web profiles while TUI profiles keep it dormant.
 
 ```sh
-dsh plugin --profile web add \
-  @openma/dsh-agents-plugins-bridge \
-  @openma/dsh-agents-plugins-bridge-ui
+dsh plugin --profile web add @openma/dsh-agents-plugins-bridge
 ```
 
 MIT licensed.

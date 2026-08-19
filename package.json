@@ -1,6 +1,6 @@
 {
   "name": "@openma/dsh-agents-plugins-bridge",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "description": "Portable Agent Plugins, Codex, Claude Code, and Pi plugin bridge for dsh",
   "license": "MIT",
   "publishConfig": {
@@ -276,8 +276,9 @@
     "@deepseek-ai/dsh-hooks-claude-code": "^0.1.0-rc.7",
     "@deepseek-ai/dsh-hooks-codex": "^0.1.0-rc.7",
     "@earendil-works/pi-coding-agent": "0.84.2",
-    "@openma/dsh-agents-plugins-bridge-theme": "0.1.0",
-    "@openma/dsh-agents-plugins-bridge-ui": "0.1.0",
+    "@openma/dsh-agents-plugins-bridge-theme": "0.0.1",
+    "@openma/dsh-agents-plugins-bridge-ui": "0.0.1",
+    "@openma/dsh-mcp-apps": "0.0.1",
     "minimatch": "^10.0.3",
     "smol-toml": "^1.8.0",
     "yaml": "^2.8.1",

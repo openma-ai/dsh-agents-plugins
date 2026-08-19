@@ -1,9 +1,0 @@
-# The Web surface owns its Host gateway and Browser client rows. Install it
-# beside the platform-neutral root bridge; terminal profiles omit this bundle.
-
-- insert:
-    - id: plugin-bridge-ui-host
-      name: '@openma/dsh-agents-plugins-bridge/ui-host'
-
-    - id: plugin-bridge-ui
-      name: '@openma/dsh-agents-plugins-bridge-ui'

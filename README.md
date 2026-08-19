@@ -20,21 +20,20 @@ command, imported foreign slash commands, and user-invocable skills into the
 TUI command menu. Hooks, skills, commands, prompts, MCP connections, and the
 other backend rows therefore work without a browser UI or MCP Apps renderer.
 
-The root bundle carries the Web UI package as a child dependency. Its adaptive
-surface row mounts the independent Host-gateway and Browser rows through DSH's
-Loader only when the Web Host seam exists. The **Agent plugins** tab therefore
-appears in Web Plugins settings, while TUI loads only the backend capabilities.
-Existing profiles that explicitly installed the older UI bundle continue to
-work; the adaptive row reuses those Loader entries rather than duplicating them.
+The root bundle carries the Web UI and theme packages as runtime dependencies;
+they are not standalone DSH bundles. Its adaptive surface row mounts the
+independent Host-gateway and Browser rows through DSH's Loader only when the Web
+Host seam exists. The **Agent plugins** tab therefore appears in Web Plugins
+settings, while TUI loads only the backend capabilities. Users install only the
+root package; the runtime package roots remain separate because DSH's browser
+module graph deliberately treats each client capability as one plugin.
 
 DSH composes plugins per profile. Install the root bridge into each profile
-that should consume foreign plugins. The independent MCP Apps bundle is
-optional and belongs on a Web profile when foreign MCP servers expose Apps;
-the bridge's backend capabilities do not depend on it:
-
-```sh
-dsh plugin --profile web add @openma/dsh-mcp-apps
-```
+that should consume foreign plugins. It mounts the independent MCP Apps bundle
+as a nested plugin automatically, so Web profiles can render Apps exposed by
+foreign MCP servers without a second install. The MCP Apps package remains
+available for profiles that want that capability without the agent-plugin
+bridge.
 
 Then inspect the active bridge:
 

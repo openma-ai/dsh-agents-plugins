@@ -21,11 +21,26 @@ async function bundleRows(packagePath: string): Promise<Array<{ id?: string; nam
 
 test('root package is the one-install bundle while its Web surface stays adaptive', async () => {
   const manifest = JSON.parse(await readFile(resolve(root, 'package.json'), 'utf8')) as {
+    bundledDependencies?: string[]
     dependencies?: Record<string, string>
     publishConfig?: { access?: string }
   }
-  assert.equal(manifest.dependencies?.['@openma/dsh-agents-plugins-bridge-ui'], '0.1.0')
+  assert.equal(manifest.dependencies?.['@openma/dsh-agents-plugins-bridge-ui'], '0.0.1')
+  assert.equal(manifest.dependencies?.['@openma/dsh-mcp-apps'], '0.0.1')
+  assert.equal(manifest.bundledDependencies, undefined)
   assert.equal(manifest.publishConfig?.access, 'public')
+
+  for (const directory of ['packages/theme-adapter', 'packages/ui']) {
+    const child = JSON.parse(await readFile(resolve(root, directory, 'package.json'), 'utf8')) as {
+      dsh?: { bundle?: unknown; client?: unknown }
+      private?: boolean
+      publishConfig?: { access?: string }
+    }
+    assert.notEqual(child.private, true, `${directory} must remain installable as a runtime dependency`)
+    assert.equal(child.publishConfig?.access, 'public')
+    assert.equal(child.dsh?.bundle, undefined, `${directory} must not advertise a standalone DSH bundle`)
+    assert.notEqual(child.dsh?.client, undefined, `${directory} must retain its browser plugin face`)
+  }
 
   const rows = await bundleRows(resolve(root, 'package.json'))
   const ids = new Set(rows.map(row => row.id))
@@ -39,6 +54,7 @@ test('root package is the one-install bundle while its Web surface stays adaptiv
     'plugin-bridge-adapter-prompt-commands',
     'plugin-bridge-runtime',
     'plugin-bridge-command',
+    'plugin-bridge-mcp-apps',
     'plugin-bridge-ui-auto',
   ]) {
     assert.ok(ids.has(id), `missing root bundle row ${id}`)
@@ -46,18 +62,4 @@ test('root package is the one-install bundle while its Web surface stays adaptiv
 
   assert.equal(ids.has('plugin-bridge-ui-host'), false)
   assert.equal(ids.has('plugin-bridge-ui'), false)
-})
-
-test('Web UI bundle owns only the settings gateway and Web client rows', async () => {
-  const rows = await bundleRows(resolve(root, 'packages/ui/package.json'))
-  assert.deepEqual(rows, [
-    {
-      id: 'plugin-bridge-ui-host',
-      name: '@openma/dsh-agents-plugins-bridge/ui-host',
-    },
-    {
-      id: 'plugin-bridge-ui',
-      name: '@openma/dsh-agents-plugins-bridge-ui',
-    },
-  ])
 })

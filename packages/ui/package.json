@@ -1,6 +1,6 @@
 {
   "name": "@openma/dsh-agents-plugins-bridge-ui",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "description": "DeepSeek Harness Web settings UI for the Agent Plugins bridge",
   "license": "MIT",
   "publishConfig": {
@@ -27,7 +27,6 @@
       "types": "./lib/types/types.d.ts",
       "default": "./lib/types/types.js"
     },
-    "./cordis.patch.yml": "./cordis.patch.yml",
     "./package.json": "./package.json"
   },
   "files": [
@@ -36,14 +35,10 @@
     "lib/client.js.map",
     "lib/types/**/*.js",
     "lib/types/**/*.d.ts",
-    "cordis.patch.yml",
     "README.md",
     "LICENSE"
   ],
   "dsh": {
-    "bundle": {
-      "patch": "./cordis.patch.yml"
-    },
     "client": {
       "inject": [
         "@deepseek-ai/dsh-api-remotes",
