@@ -1,3 +1,11 @@
+export class PluginBridgeInstallError extends Error {
+    reason;
+    constructor(reason) {
+        super(`Plugin install failed: ${reason}`);
+        this.reason = reason;
+        this.name = 'PluginBridgeInstallError';
+    }
+}
 function unwrap(endpoint, result) {
     if (result.ok)
         return result.value;

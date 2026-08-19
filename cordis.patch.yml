@@ -56,17 +56,41 @@
     - id: plugin-bridge-adapter-hooks
       name: '@openma/dsh-agents-plugins-bridge/adapters/dsh-hooks'
 
-    - id: plugin-bridge-policy-hook-user-approval
-      name: '@openma/dsh-agents-plugins-bridge/policies/hook-user-approval'
+    - id: plugin-bridge-adapter-prompt-commands
+      name: '@openma/dsh-agents-plugins-bridge/adapters/dsh-prompt-commands'
+
+    - id: plugin-bridge-adapter-pi-skills
+      name: '@openma/dsh-agents-plugins-bridge/adapters/dsh-pi-skills'
+
+    - id: plugin-bridge-adapter-pi-extensions
+      name: '@openma/dsh-agents-plugins-bridge/adapters/dsh-pi-extensions'
+
+    - id: plugin-bridge-adapter-themes
+      name: '@openma/dsh-agents-plugins-bridge/adapters/dsh-themes'
+
+    - id: plugin-bridge-adapter-lsp
+      name: '@openma/dsh-agents-plugins-bridge/adapters/dsh-lsp'
+
+    - id: plugin-bridge-adapter-codex-apps
+      name: '@openma/dsh-agents-plugins-bridge/adapters/dsh-codex-apps'
+
+    - id: plugin-bridge-adapter-claude-agents
+      name: '@openma/dsh-agents-plugins-bridge/adapters/dsh-claude-agents'
+
+    - id: plugin-bridge-adapter-output-styles
+      name: '@openma/dsh-agents-plugins-bridge/adapters/dsh-output-styles'
+
+    - id: plugin-bridge-adapter-claude-monitors
+      name: '@openma/dsh-agents-plugins-bridge/adapters/dsh-claude-monitors'
 
     - id: plugin-bridge-runtime
       name: '@openma/dsh-agents-plugins-bridge/runtime'
 
-    - id: plugin-bridge-ui-host
-      name: '@openma/dsh-agents-plugins-bridge/ui-host'
-
-    - id: plugin-bridge-ui
-      name: '@openma/dsh-agents-plugins-bridge-ui'
-
     - id: plugin-bridge-command
       name: '@openma/dsh-agents-plugins-bridge/command'
+
+    # One-install adaptive surface. It stays active but mounts no children on
+    # TUI; on Web it mounts the Host gateway and Browser client as Loader
+    # children, preserving both faces as independent plugin entries.
+    - id: plugin-bridge-ui-auto
+      name: '@openma/dsh-agents-plugins-bridge/ui-auto'

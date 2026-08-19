@@ -1,7 +1,11 @@
 import React, { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { PluginBridgeView } from '../types.ts'
+import type { PluginBridgeInstallFailureReason } from '../types.ts'
 import type { PluginBridgeSettingsTabInjected } from './register.ts'
-import { PluginBridgeContent } from './PluginBridgeContent.tsx'
+import {
+  PluginBridgeContent,
+  type PluginBridgeMutationFeedback,
+} from './PluginBridgeContent.tsx'
 
 export interface PluginBridgeSettingsTabProps extends PluginBridgeSettingsTabInjected {
   readonly t: (key: string) => string
@@ -12,14 +16,48 @@ type ViewState =
   | { readonly status: 'error' }
   | { readonly status: 'ready'; readonly view: PluginBridgeView }
 
+function installErrorKey(error: unknown): string {
+  const reason = typeof error === 'object' && error !== null && 'reason' in error
+    ? (error as { readonly reason?: unknown }).reason
+    : undefined
+  const structured: Partial<Record<PluginBridgeInstallFailureReason, string>> = {
+    timeout: 'installErrorTimeout',
+    source: 'installErrorSource',
+    unsupported: 'installErrorUnsupported',
+    invalid: 'installErrorInvalid',
+    activation: 'installErrorActivation',
+    'already-installed': 'installErrorInstalled',
+    unknown: 'installErrorGeneric',
+  }
+  if (typeof reason === 'string' && reason in structured) {
+    return structured[reason as PluginBridgeInstallFailureReason] as string
+  }
+  const message = error instanceof Error ? error.message : ''
+  if (/timed?\s*out|timeout/iu.test(message)) return 'installErrorTimeout'
+  if (/already installed/iu.test(message)) return 'installErrorInstalled'
+  if (/unsupported package format|has no components supported|not supported/iu.test(message)) {
+    return 'installErrorUnsupported'
+  }
+  if (/invalid (?:plugin )?manifest|manifest (?:is )?invalid|schema|parse|symlink|subdirectory|not a directory/iu.test(message)) {
+    return 'installErrorInvalid'
+  }
+  if (/\bgit\b|clone|checkout|fetch|download|network|ECONN|ENOTFOUND|HTTP/iu.test(message)) {
+    return 'installErrorSource'
+  }
+  return 'installErrorGeneric'
+}
+
+function mutationErrorKey(action: string, error: unknown): string {
+  return action.startsWith('install:') ? installErrorKey(error) : 'mutationError'
+}
+
 /** Mounted settings tab that owns async loading, retry, and mutation state. */
 export function PluginBridgeSettingsTab(props: PluginBridgeSettingsTabProps): ReactNode {
   const { t, load } = props
   const mounted = useRef(true)
   const [request, setRequest] = useState(0)
   const [state, setState] = useState<ViewState>({ status: 'loading' })
-  const [busyAction, setBusyAction] = useState<string | null>(null)
-  const [mutationFailed, setMutationFailed] = useState(false)
+  const [mutationFeedback, setMutationFeedback] = useState<Readonly<Record<string, PluginBridgeMutationFeedback>>>({})
   const [marketplaceLocation, setMarketplaceLocation] = useState('')
 
   useEffect(() => {
@@ -41,17 +79,26 @@ export function PluginBridgeSettingsTab(props: PluginBridgeSettingsTabProps): Re
   }
 
   const run = async (name: string, operation: () => Promise<PluginBridgeView>): Promise<boolean> => {
-    setBusyAction(name)
-    setMutationFailed(false)
+    setMutationFeedback(current => ({ ...current, [name]: { status: 'pending' } }))
     try {
       const view = await operation()
       if (mounted.current) setState({ status: 'ready', view })
+      if (mounted.current) {
+        setMutationFeedback(current => {
+          const next = { ...current }
+          delete next[name]
+          return next
+        })
+      }
       return true
-    } catch {
-      if (mounted.current) setMutationFailed(true)
+    } catch (error: unknown) {
+      if (mounted.current) {
+        setMutationFeedback(current => ({
+          ...current,
+          [name]: { status: 'error', messageKey: mutationErrorKey(name, error) },
+        }))
+      }
       return false
-    } finally {
-      if (mounted.current) setBusyAction(null)
     }
   }
 
@@ -66,11 +113,9 @@ export function PluginBridgeSettingsTab(props: PluginBridgeSettingsTabProps): Re
   }
 
   return (
-    <>
-      {mutationFailed ? <p role="alert">{t('mutationError')}</p> : null}
-      <PluginBridgeContent
+    <PluginBridgeContent
         view={state.view}
-        busyAction={busyAction}
+        mutationFeedback={mutationFeedback}
         marketplaceLocation={marketplaceLocation}
         t={t}
         onMarketplaceLocationChange={setMarketplaceLocation}
@@ -80,11 +125,16 @@ export function PluginBridgeSettingsTab(props: PluginBridgeSettingsTabProps): Re
           const succeeded = await run('addMarketplace', () => props.addMarketplace(location))
           if (succeeded && mounted.current) setMarketplaceLocation('')
         }}
-        onImportMarketplace={async (ref) => { await run('importMarketplace', () => props.importMarketplace(ref)) }}
-        onImportLocal={async (ref) => { await run('importLocal', () => props.importLocal(ref)) }}
-        onInstall={async (name, marketplace) => { await run('install', () => props.install(name, marketplace)) }}
-        onSetEnabled={async (name, enabled) => { await run('setEnabled', () => props.setEnabled(name, enabled)) }}
+        onImportMarketplace={async (ref) => {
+          await run(`importMarketplace:${ref}`, () => props.importMarketplace(ref))
+        }}
+        onImportLocal={async (ref) => { await run(`importLocal:${ref}`, () => props.importLocal(ref)) }}
+        onInstall={async (name, marketplace) => {
+          await run(`install:${marketplace}:${name}`, () => props.install(name, marketplace))
+        }}
+        onSetEnabled={async (name, enabled) => {
+          await run(`setEnabled:${name}`, () => props.setEnabled(name, enabled))
+        }}
       />
-    </>
   )
 }

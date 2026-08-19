@@ -12,6 +12,7 @@ export interface PluginBridgeInstallationView {
     readonly enabled: boolean;
     readonly rowCount: number;
     readonly protectedCount: number;
+    readonly requiredHosts: readonly string[];
     readonly unsupportedCount: number;
     readonly diagnostics: readonly string[];
 }
@@ -20,6 +21,14 @@ export interface PluginBridgeSnapshot {
     readonly marketplaces: readonly PluginBridgeMarketplaceView[];
     readonly installations: readonly PluginBridgeInstallationView[];
 }
+export type PluginBridgeInstallFailureReason = 'timeout' | 'source' | 'unsupported' | 'invalid' | 'activation' | 'already-installed' | 'unknown';
+export type PluginBridgeInstallResult = {
+    readonly status: 'installed';
+    readonly snapshot: PluginBridgeSnapshot;
+} | {
+    readonly status: 'failed';
+    readonly reason: PluginBridgeInstallFailureReason;
+};
 /** One installed foreign plugin that has not been imported into DSH. */
 export interface PluginBridgeLocalCandidateView {
     readonly ref: string;
@@ -58,6 +67,7 @@ export type PluginBridgeRemoteResult<T> = {
     readonly error: {
         readonly code: string;
         readonly message: string;
+        readonly details: object;
     };
 };
 /** Browser projection of the `agentPluginsBridge` Remote namespace. */
@@ -68,7 +78,7 @@ export interface PluginBridgeRemoteApi {
     addMarketplace(location: string): Promise<PluginBridgeRemoteResult<PluginBridgeSnapshot>>;
     importMarketplace(ref: string): Promise<PluginBridgeRemoteResult<PluginBridgeSnapshot>>;
     importLocal(ref: string): Promise<PluginBridgeRemoteResult<PluginBridgeSnapshot>>;
-    installPlugin(name: string, marketplace: string): Promise<PluginBridgeRemoteResult<PluginBridgeSnapshot>>;
+    installPlugin(name: string, marketplace: string): Promise<PluginBridgeRemoteResult<PluginBridgeInstallResult>>;
     setEnabled(name: string, enabled: boolean): Promise<PluginBridgeRemoteResult<PluginBridgeSnapshot>>;
 }
 /** Combined model rendered by the Web settings tab. */

@@ -46,6 +46,75 @@ test('Claude Code marketplace normalizes documented relative and GitHub plugin s
   })
 })
 
+test('Claude Code marketplace normalizes documented URL and git-subdir plugin sources', () => {
+  const catalog = claudeCodeMarketplaceProvider.probe({
+    manifestPath: '.claude-plugin/marketplace.json',
+    manifest: {
+      name: 'remote-tools',
+      plugins: [
+        {
+          name: 'root-plugin',
+          source: {
+            source: 'url',
+            url: 'https://github.com/example/root-plugin.git',
+            path: 'claude-plugin/root-plugin',
+            ref: 'main',
+            sha: 'a1b2c3d4',
+          },
+        },
+        {
+          name: 'nested-plugin',
+          source: {
+            source: 'git-subdir',
+            url: 'https://github.com/example/claude-plugins.git',
+            path: 'plugins/nested-plugin',
+            sha: 'e5f6a7b8',
+          },
+        },
+        {
+          name: 'catalog-pinned-plugin',
+          source: {
+            source: 'github',
+            repo: 'example/catalog-pinned-plugin',
+            commit: '0123456789abcdef0123456789abcdef01234567',
+            sha: '89abcdef0123456789abcdef0123456789abcdef',
+          },
+        },
+      ],
+    },
+  })
+
+  assert.deepEqual(catalog?.plugins, [
+    {
+      name: 'root-plugin',
+      source: {
+        kind: 'git-repository',
+        url: 'https://github.com/example/root-plugin.git',
+        subdirectory: 'claude-plugin/root-plugin',
+        ref: 'main',
+        sha: 'a1b2c3d4',
+      },
+    },
+    {
+      name: 'nested-plugin',
+      source: {
+        kind: 'git-repository',
+        url: 'https://github.com/example/claude-plugins.git',
+        subdirectory: 'plugins/nested-plugin',
+        sha: 'e5f6a7b8',
+      },
+    },
+    {
+      name: 'catalog-pinned-plugin',
+      source: {
+        kind: 'github-repository',
+        repo: 'example/catalog-pinned-plugin',
+        sha: '89abcdef0123456789abcdef0123456789abcdef',
+      },
+    },
+  ])
+})
+
 test('Claude Code marketplace rejects duplicate plugin identifiers', () => {
   assert.throws(
     () => claudeCodeMarketplaceProvider.probe({

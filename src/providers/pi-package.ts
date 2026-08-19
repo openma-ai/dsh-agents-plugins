@@ -11,10 +11,10 @@ const FORMAT = 'pi-package'
 const MANIFEST_PATH = 'package.json'
 
 const RESOURCES = [
-  { field: 'extensions', type: 'pi-extension', convention: 'extensions/' },
-  { field: 'skills', type: 'skill', convention: 'skills/' },
-  { field: 'prompts', type: 'pi-prompt', convention: 'prompts/' },
-  { field: 'themes', type: 'pi-theme', convention: 'themes/' },
+  { field: 'extensions', type: 'pi-extension-set', convention: 'extensions/' },
+  { field: 'skills', type: 'pi-skill-set', convention: 'skills/' },
+  { field: 'prompts', type: 'pi-prompt-set', convention: 'prompts/' },
+  { field: 'themes', type: 'pi-theme-set', convention: 'themes/' },
 ] as const
 
 function record(value: unknown): value is Record<string, unknown> {
@@ -69,33 +69,22 @@ function declaredResources(
     if (!Array.isArray(declared) || declared.some(entry => typeof entry !== 'string')) {
       throw new TypeError(`${FORMAT}: pi.${resource.field} must be an array of strings`)
     }
-    for (const entry of declared as string[]) {
-      const path = normalizeResourcePath(entry, resource.field)
-      if (isPattern(path)) {
-        components.push({
-          type: `${resource.type}-pattern`,
-          path,
-        })
-        diagnostics.push(
-          `${FORMAT}: pi.${resource.field} pattern "${entry}" requires a Pi-specific adapter`,
-        )
-        continue
-      }
+    const normalizedEntries = (declared as string[]).map(entry => normalizeResourcePath(entry, resource.field))
+    for (const [index, path] of normalizedEntries.entries()) {
+      if (isPattern(path)) continue
       if (!source.has(path)) {
-        diagnostics.push(`${FORMAT}: pi.${resource.field} path "${entry}" does not exist; resource disabled`)
-        continue
-      }
-      const kind = source.kind(path)
-      if (resource.field === 'skills' && kind !== 'directory') {
-        components.push({ type: 'pi-skill-file', path })
         diagnostics.push(
-          `${FORMAT}: pi.skills path "${entry}" is not a directory and requires a Pi-specific adapter`,
+          `${FORMAT}: pi.${resource.field} path "${(declared as string[])[index]}" does not exist; resource disabled`,
         )
-        continue
       }
+    }
+    const entries = normalizedEntries.filter(path => isPattern(path) || source.has(path))
+    if (entries.length > 0) {
       components.push({
         type: resource.type,
-        path: kind === 'directory' ? asDirectory(path) : path,
+        path: MANIFEST_PATH,
+        manifestField: `pi.${resource.field}`,
+        metadata: Object.freeze({ entries: Object.freeze(entries) }),
       })
     }
   }
@@ -118,7 +107,11 @@ function conventionalResources(source: PluginPackageSource): {
       diagnostics.push(`${FORMAT}: ${resource.convention} must be a directory; resource disabled`)
       continue
     }
-    components.push({ type: resource.type, path: resource.convention })
+    components.push({
+      type: resource.type,
+      path: resource.convention,
+      metadata: Object.freeze({ entries: Object.freeze([resource.convention]) }),
+    })
   }
   return {
     claimed: components.length > 0,

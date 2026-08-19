@@ -1,4 +1,5 @@
 import type {
+  GitRepositorySource,
   GitHubRepositorySource,
   MarketplacePluginEntry,
   MarketplaceRelativeDirectorySource,
@@ -63,6 +64,38 @@ export function parseGitHubRepositorySource(
   return result
 }
 
+/** Parse the documented `url` and `git-subdir` source shapes without shell URLs. */
+export function parseGitRepositorySource(
+  source: Record<string, unknown>,
+  field: string,
+  options: { readonly allowUrlSubdirectory?: boolean } = {},
+): GitRepositorySource {
+  const hasSubdirectory = source.source === 'git-subdir'
+    || (source.source === 'url' && options.allowUrlSubdirectory === true && source.path !== undefined)
+  if (source.source !== 'url' && source.source !== 'git-subdir') {
+    throw new TypeError(`${field}.source must be "url" or "git-subdir"`)
+  }
+  const allowed = new Set(['source', 'url', 'ref', 'sha', ...(hasSubdirectory ? ['path'] : [])])
+  const unsupportedKey = Object.keys(source).find(key => !allowed.has(key))
+  if (unsupportedKey !== undefined) throw new TypeError(`${field}.${unsupportedKey} is not supported`)
+  if (typeof source.url !== 'string' || !isSafeGitUrl(source.url)) {
+    throw new TypeError(`${field}.url must be an HTTPS Git URL without credentials or a fragment`)
+  }
+  const result: {
+    kind: 'git-repository'
+    url: string
+    subdirectory?: string
+    ref?: string
+    sha?: string
+  } = { kind: 'git-repository', url: source.url }
+  if (hasSubdirectory) {
+    result.subdirectory = parseRepositorySubdirectory(source.path, `${field}.path`)
+  }
+  if (source.ref !== undefined) result.ref = requireNonEmptyString(source.ref, `${field}.ref`)
+  if (source.sha !== undefined) result.sha = requireNonEmptyString(source.sha, `${field}.sha`)
+  return result
+}
+
 export function parsePluginEntry(
   value: unknown,
   index: number,
@@ -88,6 +121,31 @@ function isSafeMarketplaceRelativePath(value: string): boolean {
   if (!value.startsWith('./') || value.includes('\\') || value.includes('\0')) return false
   const segments = value.slice(2).split('/')
   return segments.length > 0 && segments.every(segment => segment !== '' && segment !== '.' && segment !== '..')
+}
+
+function parseRepositorySubdirectory(value: unknown, field: string): string {
+  if (typeof value !== 'string' || value.includes('\\') || value.includes('\0')) {
+    throw new TypeError(`${field} must be a root-contained repository path`)
+  }
+  const normalized = value.startsWith('./') ? value.slice(2) : value
+  const segments = normalized.split('/')
+  if (segments.length === 0
+    || segments.some(segment => segment === '' || segment === '.' || segment === '..')) {
+    throw new TypeError(`${field} must be a root-contained repository path`)
+  }
+  return value
+}
+
+function isSafeGitUrl(value: string): boolean {
+  try {
+    const parsed = new URL(value)
+    return parsed.protocol === 'https:'
+      && parsed.username.length === 0
+      && parsed.password.length === 0
+      && parsed.hash.length === 0
+  } catch {
+    return false
+  }
 }
 
 function isGitHubOwnerRepo(value: string): boolean {

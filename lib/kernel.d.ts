@@ -24,6 +24,8 @@ export interface PackageComponent {
     readonly path: string;
     /** Manifest field when the component is declared inline rather than in its own file. */
     readonly manifestField?: string;
+    /** Format-owned, JSON-safe component data consumed only by its matching adapter. */
+    readonly metadata?: Readonly<Record<string, unknown>>;
 }
 /** Recognizes an extracted package dialect without installing or executing it. */
 export interface PackageFormatProvider {
@@ -107,8 +109,18 @@ export interface ComponentAdapter {
 export interface ComponentAdapterMaterialization {
     readonly rows: readonly DshPluginRow[];
     readonly diagnostics?: readonly string[];
+    /** Runtime dependencies recognized by an adapter but fulfilled by another host. */
+    readonly requirements?: readonly RuntimeRequirement[];
     /** Optional execution gates owned by separately registered activation policies. */
     readonly activations?: readonly ActivationRequirement[];
+}
+/** One recognized capability that remains dependent on a foreign runtime host. */
+export interface RuntimeRequirement {
+    readonly kind: 'foreign-host';
+    readonly host: string;
+    readonly capability: string;
+    readonly componentPath: string;
+    readonly metadata?: Readonly<Record<string, unknown>>;
 }
 /** One row-level execution gate contributed by a capability adapter. */
 export interface ActivationRequirement {
@@ -132,6 +144,7 @@ export interface ActivationPolicy {
 export interface PackageMaterialization {
     readonly rows: readonly DshPluginRow[];
     readonly activations: readonly ActivationRequirement[];
+    readonly requirements: readonly RuntimeRequirement[];
     readonly unsupported: readonly PackageComponent[];
     readonly diagnostics?: readonly string[];
 }

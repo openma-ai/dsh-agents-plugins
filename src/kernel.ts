@@ -32,6 +32,8 @@ export interface PackageComponent {
   readonly path: string
   /** Manifest field when the component is declared inline rather than in its own file. */
   readonly manifestField?: string
+  /** Format-owned, JSON-safe component data consumed only by its matching adapter. */
+  readonly metadata?: Readonly<Record<string, unknown>>
 }
 
 /** Recognizes an extracted package dialect without installing or executing it. */
@@ -130,8 +132,19 @@ export interface ComponentAdapter {
 export interface ComponentAdapterMaterialization {
   readonly rows: readonly DshPluginRow[]
   readonly diagnostics?: readonly string[]
+  /** Runtime dependencies recognized by an adapter but fulfilled by another host. */
+  readonly requirements?: readonly RuntimeRequirement[]
   /** Optional execution gates owned by separately registered activation policies. */
   readonly activations?: readonly ActivationRequirement[]
+}
+
+/** One recognized capability that remains dependent on a foreign runtime host. */
+export interface RuntimeRequirement {
+  readonly kind: 'foreign-host'
+  readonly host: string
+  readonly capability: string
+  readonly componentPath: string
+  readonly metadata?: Readonly<Record<string, unknown>>
 }
 
 /** One row-level execution gate contributed by a capability adapter. */
@@ -159,6 +172,7 @@ export interface ActivationPolicy {
 export interface PackageMaterialization {
   readonly rows: readonly DshPluginRow[]
   readonly activations: readonly ActivationRequirement[]
+  readonly requirements: readonly RuntimeRequirement[]
   readonly unsupported: readonly PackageComponent[]
   readonly diagnostics?: readonly string[]
 }
@@ -313,6 +327,7 @@ export class PluginBridgeKernel extends Service {
     const unsupported: PackageComponent[] = []
     const diagnostics = [...(detected.diagnostics ?? [])]
     const activations: ActivationRequirement[] = []
+    const requirements: RuntimeRequirement[] = []
     const rowIds = new Set<string>()
     const activationRowIds = new Set<string>()
     for (const component of detected.components) {
@@ -336,6 +351,11 @@ export class PluginBridgeKernel extends Service {
       const produced = isAdapterMaterialization(output) ? output.rows : output
       if (isAdapterMaterialization(output) && output.diagnostics !== undefined) {
         diagnostics.push(...output.diagnostics)
+      }
+      if (isAdapterMaterialization(output) && output.requirements !== undefined) {
+        requirements.push(...output.requirements.map(requirement => (
+          Object.freeze(structuredClone(requirement))
+        )))
       }
       for (const row of produced) {
         if (rowIds.has(row.id)) {
@@ -362,6 +382,7 @@ export class PluginBridgeKernel extends Service {
     return Object.freeze({
       rows: Object.freeze(rows),
       activations: Object.freeze(activations),
+      requirements: Object.freeze(requirements),
       unsupported: Object.freeze(unsupported),
       ...diagnostics.length === 0 ? {} : { diagnostics: Object.freeze(diagnostics) },
     })

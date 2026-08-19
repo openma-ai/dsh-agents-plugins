@@ -3,6 +3,7 @@ import type { PluginBridgeView } from '../types.ts'
 import {
   loadPluginBridgeDiscoveries,
   loadPluginBridgeView,
+  PluginBridgeInstallError,
   unwrapPluginBridgeMutation,
 } from './view-model.ts'
 
@@ -57,7 +58,11 @@ export function createPluginBridgeSettingsFace(api: PluginBridgeRemoteApi): Plug
     addMarketplace: location => mutate('addMarketplace', () => api.addMarketplace(location)),
     importMarketplace: ref => mutate('importMarketplace', () => api.importMarketplace(ref)),
     importLocal: ref => mutate('importLocal', () => api.importLocal(ref)),
-    install: (name, marketplace) => mutate('installPlugin', () => api.installPlugin(name, marketplace)),
+    install: async (name, marketplace) => {
+      const result = unwrapPluginBridgeMutation('installPlugin', await api.installPlugin(name, marketplace))
+      if (result.status === 'failed') throw new PluginBridgeInstallError(result.reason)
+      return await loadPluginBridgeDiscoveries(api, result.snapshot)
+    },
     setEnabled: (name, enabled) => mutate('setEnabled', () => api.setEnabled(name, enabled)),
   }
 }

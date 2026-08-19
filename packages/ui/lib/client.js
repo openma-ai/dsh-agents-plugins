@@ -30,7 +30,7 @@ window.__ModuleLoader__.load({
 		react = __toESM(react, 1);
 		let react_jsx_runtime = require("react/jsx-runtime");
 		//#region \0openma-plugin-bridge-css:/Users/minimax/oos-proj/openma/dsh-agents-plugins-bridge/packages/ui/src/client/PluginBridgeContent.module.css.mjs
-		const css = "._9Wh00a_root{width:100%;max-width:760px;color:var(--dsw-alias-label-primary);flex-direction:column;gap:18px;display:flex}._9Wh00a_root *{box-sizing:border-box}._9Wh00a_header,._9Wh00a_heading,._9Wh00a_row,._9Wh00a_actions,._9Wh00a_add{align-items:center;display:flex}._9Wh00a_header{justify-content:space-between;gap:12px}._9Wh00a_header h2,._9Wh00a_heading h3,._9Wh00a_row p{margin:0}._9Wh00a_header h2{font-size:16px;line-height:24px}._9Wh00a_section{flex-direction:column;gap:10px;display:flex}._9Wh00a_heading{gap:7px}._9Wh00a_heading h3{font-size:13px;font-weight:600;line-height:20px}._9Wh00a_count{color:var(--dsw-alias-label-tertiary);font-variant-numeric:tabular-nums;font-size:12px}._9Wh00a_list{flex-direction:column;gap:8px;margin:0;padding:0;list-style:none;display:flex}._9Wh00a_row{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);border-radius:10px;justify-content:space-between;gap:14px;min-height:54px;padding:10px 12px}._9Wh00a_main{flex-direction:column;gap:3px;min-width:0;display:flex}._9Wh00a_name{text-overflow:ellipsis;white-space:nowrap;font-size:14px;font-weight:600;line-height:20px;overflow:hidden}._9Wh00a_meta,._9Wh00a_empty,._9Wh00a_diagnostic{color:var(--dsw-alias-label-tertiary);overflow-wrap:anywhere;font-size:12px;line-height:18px}._9Wh00a_empty{margin:0}._9Wh00a_diagnostic{color:var(--dsw-alias-state-error-primary);margin:2px 0 0}._9Wh00a_actions{flex-wrap:wrap;flex:none;justify-content:flex-end;gap:7px}._9Wh00a_button{appearance:none;border:1px solid var(--dsw-alias-border-l2);color:var(--dsw-alias-label-primary);font:inherit;cursor:pointer;background:0 0;border-radius:7px;padding:5px 10px;font-size:12px;line-height:18px}._9Wh00a_button[data-primary=true]{background:var(--dsw-alias-label-primary);color:var(--dsw-alias-bg-layer-3);border-color:#0000}._9Wh00a_button:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}._9Wh00a_button:focus-visible,._9Wh00a_input:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:1px}._9Wh00a_button:disabled{opacity:.45;cursor:default}._9Wh00a_add{gap:8px}._9Wh00a_input{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);min-width:0;height:34px;color:var(--dsw-alias-label-primary);font:inherit;border-radius:7px;outline:0;flex:1;padding:0 10px;font-size:12px}@media (width<=600px){._9Wh00a_row{flex-direction:column;align-items:flex-start}._9Wh00a_actions{justify-content:flex-start}._9Wh00a_add{flex-direction:column;align-items:stretch}}";
+		const css = "._9Wh00a_root{width:100%;min-width:0;max-width:760px;color:var(--dsw-alias-label-primary);flex-direction:column;gap:18px;display:flex}._9Wh00a_root *{box-sizing:border-box}._9Wh00a_header,._9Wh00a_heading,._9Wh00a_row,._9Wh00a_actions,._9Wh00a_add{align-items:center;display:flex}._9Wh00a_header{justify-content:space-between;gap:12px}._9Wh00a_header h2,._9Wh00a_heading h3,._9Wh00a_row p{margin:0}._9Wh00a_header h2{font-size:16px;line-height:24px}._9Wh00a_section{flex-direction:column;gap:10px;min-width:0;display:flex}._9Wh00a_heading{gap:7px}._9Wh00a_heading h3{font-size:13px;font-weight:600;line-height:20px}._9Wh00a_count{color:var(--dsw-alias-label-tertiary);font-variant-numeric:tabular-nums;font-size:12px}._9Wh00a_list{flex-direction:column;gap:8px;min-width:0;margin:0;padding:0;list-style:none;display:flex}._9Wh00a_row{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);border-radius:10px;justify-content:space-between;gap:14px;width:100%;min-width:0;min-height:54px;padding:10px 12px}._9Wh00a_main{flex-direction:column;flex:1;gap:3px;min-width:0;display:flex}._9Wh00a_name{text-overflow:ellipsis;white-space:nowrap;font-size:14px;font-weight:600;line-height:20px;overflow:hidden}._9Wh00a_meta,._9Wh00a_empty,._9Wh00a_diagnostic{color:var(--dsw-alias-label-tertiary);overflow-wrap:anywhere;font-size:12px;line-height:18px}._9Wh00a_empty{margin:0}._9Wh00a_diagnostic{color:var(--dsw-alias-state-error-primary);margin:2px 0 0}._9Wh00a_notice{color:var(--dsw-alias-state-warning-primary,var(--dsw-alias-label-secondary));margin:3px 0 0;font-size:12px;line-height:18px}._9Wh00a_actions{flex-wrap:wrap;flex:none;justify-content:flex-end;gap:7px}._9Wh00a_catalogItem{min-width:0}._9Wh00a_catalog{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);border-radius:10px;width:100%;min-width:0;overflow:hidden}._9Wh00a_catalogSummary{cursor:pointer;align-items:center;gap:12px;min-width:0;min-height:54px;padding:10px 12px;list-style:none;display:flex}._9Wh00a_catalogSummary::-webkit-details-marker{display:none}._9Wh00a_catalogSummary:hover{background:var(--dsw-alias-interactive-bg-hover)}._9Wh00a_catalogSummary:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:-2px}._9Wh00a_catalogCount{color:var(--dsw-alias-label-secondary);font-variant-numeric:tabular-nums;white-space:nowrap;flex:none;font-size:12px;line-height:18px}._9Wh00a_disclosure{color:var(--dsw-alias-label-tertiary);flex:none;font-size:18px;line-height:18px;transition:transform .18s cubic-bezier(.25,1,.5,1);transform:rotate(0)}._9Wh00a_catalog[open] ._9Wh00a_disclosure{transform:rotate(90deg)}._9Wh00a_catalogBody{border-top:1px solid var(--dsw-alias-border-l2);flex-direction:column;gap:8px;min-width:0;padding:10px 12px 12px;display:flex}._9Wh00a_catalogScroll{overscroll-behavior:contain;scrollbar-gutter:stable;max-height:min(320px,40vh);overflow-y:auto}._9Wh00a_pluginList{flex-direction:column;margin:0;padding:0;list-style:none;display:flex}._9Wh00a_pluginRow{border-bottom:1px solid var(--dsw-alias-border-l2);align-items:center;gap:12px;min-height:38px;padding:4px 0;display:flex}._9Wh00a_pluginRow:last-child{border-bottom:0}._9Wh00a_pluginName{min-width:0;color:var(--dsw-alias-label-primary);text-overflow:ellipsis;white-space:nowrap;flex:1;font-size:12px;line-height:18px;overflow:hidden}._9Wh00a_pluginMain{flex-direction:column;flex:1;gap:2px;min-width:0;display:flex}._9Wh00a_operationError{color:var(--dsw-alias-state-error-primary);overflow-wrap:anywhere;font-size:12px;line-height:18px}._9Wh00a_button{appearance:none;border:1px solid var(--dsw-alias-border-l2);color:var(--dsw-alias-label-primary);font:inherit;cursor:pointer;background:0 0;border-radius:7px;padding:5px 10px;font-size:12px;line-height:18px}._9Wh00a_button[data-primary=true]{background:var(--dsw-alias-label-primary);color:var(--dsw-alias-bg-layer-3);border-color:#0000}._9Wh00a_button:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}._9Wh00a_button:focus-visible,._9Wh00a_input:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:1px}._9Wh00a_button:disabled{opacity:.45;cursor:default}._9Wh00a_add{gap:8px}._9Wh00a_input{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);min-width:0;height:34px;color:var(--dsw-alias-label-primary);font:inherit;border-radius:7px;outline:0;flex:1;padding:0 10px;font-size:12px}._9Wh00a_input::placeholder{color:var(--dsw-alias-label-secondary);opacity:1}._9Wh00a_catalogFilter{width:100%;height:40px;min-height:40px;padding:0 12px;font-size:13px;line-height:20px}@media (prefers-reduced-motion:reduce){._9Wh00a_disclosure{transition:none}}@media (width<=600px){._9Wh00a_row{flex-direction:column;align-items:flex-start}._9Wh00a_actions{justify-content:flex-start}._9Wh00a_catalogSummary{align-items:flex-start}._9Wh00a_add{flex-direction:column;align-items:stretch}}";
 		const tag = "@openma/dsh-agents-plugins-bridge-ui/PluginBridgeContent.module.css";
 		if (document.querySelector(`style[data-plugin-css="${tag}"]`) === null) {
 			const node = document.createElement("style");
@@ -40,22 +40,36 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(node);
 		}
 		var PluginBridgeContent_module_css_default = {
-			"header": "_9Wh00a_header",
-			"count": "_9Wh00a_count",
-			"root": "_9Wh00a_root",
-			"add": "_9Wh00a_add",
-			"diagnostic": "_9Wh00a_diagnostic",
 			"name": "_9Wh00a_name",
-			"row": "_9Wh00a_row",
-			"empty": "_9Wh00a_empty",
-			"heading": "_9Wh00a_heading",
-			"input": "_9Wh00a_input",
-			"meta": "_9Wh00a_meta",
-			"list": "_9Wh00a_list",
-			"actions": "_9Wh00a_actions",
 			"section": "_9Wh00a_section",
+			"empty": "_9Wh00a_empty",
+			"disclosure": "_9Wh00a_disclosure",
+			"root": "_9Wh00a_root",
+			"pluginRow": "_9Wh00a_pluginRow",
+			"pluginName": "_9Wh00a_pluginName",
+			"catalogCount": "_9Wh00a_catalogCount",
 			"main": "_9Wh00a_main",
-			"button": "_9Wh00a_button"
+			"actions": "_9Wh00a_actions",
+			"operationError": "_9Wh00a_operationError",
+			"header": "_9Wh00a_header",
+			"meta": "_9Wh00a_meta",
+			"catalogFilter": "_9Wh00a_catalogFilter",
+			"add": "_9Wh00a_add",
+			"count": "_9Wh00a_count",
+			"row": "_9Wh00a_row",
+			"notice": "_9Wh00a_notice",
+			"catalogSummary": "_9Wh00a_catalogSummary",
+			"catalogBody": "_9Wh00a_catalogBody",
+			"pluginList": "_9Wh00a_pluginList",
+			"heading": "_9Wh00a_heading",
+			"diagnostic": "_9Wh00a_diagnostic",
+			"catalog": "_9Wh00a_catalog",
+			"button": "_9Wh00a_button",
+			"input": "_9Wh00a_input",
+			"pluginMain": "_9Wh00a_pluginMain",
+			"catalogItem": "_9Wh00a_catalogItem",
+			"list": "_9Wh00a_list",
+			"catalogScroll": "_9Wh00a_catalogScroll"
 		};
 		//#endregion
 		//#region src/client/PluginBridgeContent.tsx
@@ -64,6 +78,15 @@ window.__ModuleLoader__.load({
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("ul", {
 				className: PluginBridgeContent_module_css_default.diagnostic,
 				children: values.map((value) => /* @__PURE__ */ (0, react_jsx_runtime.jsx)("li", { children: value }, value))
+			});
+		}
+		function OperationError({ action, feedback, t }) {
+			if (feedback?.status !== "error") return null;
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+				className: PluginBridgeContent_module_css_default.operationError,
+				"data-operation-error": action,
+				role: "alert",
+				children: t(feedback.messageKey)
 			});
 		}
 		function Heading({ label, count }) {
@@ -75,15 +98,115 @@ window.__ModuleLoader__.load({
 				})]
 			});
 		}
+		/** Progressive catalog disclosure keeps large marketplaces usable inside Settings. */
+		function MarketplaceCatalog({ marketplace, installations, mutationFeedback, t, onInstall }) {
+			const [query, setQuery] = (0, react.useState)("");
+			const normalizedQuery = query.trim().toLocaleLowerCase();
+			const visiblePlugins = normalizedQuery.length === 0 ? marketplace.plugins : marketplace.plugins.filter((plugin) => plugin.toLocaleLowerCase().includes(normalizedQuery));
+			const pluginCount = `${String(marketplace.plugins.length)} ${t("plugins")}`;
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("li", {
+				className: PluginBridgeContent_module_css_default.catalogItem,
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("details", {
+					className: PluginBridgeContent_module_css_default.catalog,
+					"data-catalog": marketplace.name,
+					children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("summary", {
+						className: PluginBridgeContent_module_css_default.catalogSummary,
+						"data-catalog-summary": true,
+						"aria-label": `${marketplace.name}, ${marketplace.provider}, ${pluginCount}`,
+						children: [
+							/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
+								className: PluginBridgeContent_module_css_default.main,
+								children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", {
+									className: PluginBridgeContent_module_css_default.name,
+									children: marketplace.name
+								}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+									className: PluginBridgeContent_module_css_default.meta,
+									children: marketplace.provider
+								})]
+							}),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+								className: PluginBridgeContent_module_css_default.catalogCount,
+								children: pluginCount
+							}),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+								className: PluginBridgeContent_module_css_default.disclosure,
+								"aria-hidden": "true",
+								children: "›"
+							})
+						]
+					}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+						className: PluginBridgeContent_module_css_default.catalogBody,
+						children: [
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+								className: `${PluginBridgeContent_module_css_default.input} ${PluginBridgeContent_module_css_default.catalogFilter}`,
+								"data-action": "filter-marketplace",
+								"data-control-size": "large",
+								type: "search",
+								value: query,
+								"aria-label": `${t("searchPlugins")}: ${marketplace.name}`,
+								placeholder: t("searchPlugins"),
+								onChange: (event) => {
+									setQuery(event.currentTarget.value);
+								}
+							}),
+							visiblePlugins.length === 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+								className: PluginBridgeContent_module_css_default.empty,
+								children: t("noPluginMatches")
+							}) : null,
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+								className: PluginBridgeContent_module_css_default.catalogScroll,
+								"data-catalog-scroll": true,
+								children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("ul", {
+									className: PluginBridgeContent_module_css_default.pluginList,
+									children: visiblePlugins.map((plugin) => {
+										const action = `install:${marketplace.name}:${plugin}`;
+										const feedback = mutationFeedback[action];
+										const installed = installations.some((installation) => installation.name === plugin && installation.marketplace === marketplace.name);
+										const installing = feedback?.status === "pending";
+										return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("li", {
+											className: PluginBridgeContent_module_css_default.pluginRow,
+											"data-catalog-plugin": true,
+											children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
+												className: PluginBridgeContent_module_css_default.pluginMain,
+												children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+													className: PluginBridgeContent_module_css_default.pluginName,
+													title: plugin,
+													children: plugin
+												}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)(OperationError, {
+													action,
+													feedback,
+													t
+												})]
+											}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+												className: PluginBridgeContent_module_css_default.button,
+												"data-action": "install",
+												"data-install-state": installed ? "installed" : installing ? "installing" : feedback?.status === "error" ? "error" : "available",
+												type: "button",
+												disabled: installing || installed,
+												"aria-busy": installing,
+												onClick: () => {
+													onInstall(plugin, marketplace.name);
+												},
+												children: t(installed ? "installed" : installing ? "installing" : "install")
+											})]
+										}, plugin);
+									})
+								})
+							})
+						]
+					})]
+				})
+			});
+		}
 		/** Four-section Agent Plugins management surface for DSH Web settings. */
-		function PluginBridgeContent({ view, busyAction, marketplaceLocation, t, onMarketplaceLocationChange, onRescan, onAddMarketplace, onImportMarketplace, onImportLocal, onInstall, onSetEnabled }) {
-			const busy = busyAction !== null;
+		function PluginBridgeContent({ view, mutationFeedback = {}, marketplaceLocation, t, onMarketplaceLocationChange, onRescan, onAddMarketplace, onImportMarketplace, onImportLocal, onInstall, onSetEnabled }) {
 			const changeLocation = (event) => {
 				onMarketplaceLocationChange(event.currentTarget.value);
 			};
+			const rescanFeedback = mutationFeedback.rescan;
+			const addMarketplaceFeedback = mutationFeedback.addMarketplace;
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 				className: PluginBridgeContent_module_css_default.root,
-				"aria-busy": busy,
 				children: [
 					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("header", {
 						className: PluginBridgeContent_module_css_default.header,
@@ -91,12 +214,18 @@ window.__ModuleLoader__.load({
 							className: PluginBridgeContent_module_css_default.button,
 							"data-action": "rescan",
 							type: "button",
-							disabled: busy,
+							disabled: rescanFeedback?.status === "pending",
+							"aria-busy": rescanFeedback?.status === "pending",
 							onClick: () => {
 								onRescan();
 							},
-							children: t("rescan")
+							children: t(rescanFeedback?.status === "pending" ? "working" : "rescan")
 						})]
+					}),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)(OperationError, {
+						action: "rescan",
+						feedback: rescanFeedback,
+						t
 					}),
 					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("section", {
 						className: PluginBridgeContent_module_css_default.section,
@@ -147,7 +276,17 @@ window.__ModuleLoader__.load({
 													t("unsupported")
 												]
 											}),
-											/* @__PURE__ */ (0, react_jsx_runtime.jsx)(Diagnostics, { values: installation.diagnostics })
+											(installation.requiredHosts ?? []).includes("codex") ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+												className: PluginBridgeContent_module_css_default.notice,
+												"data-notice": "codex-host-required",
+												children: t("codexHostRequired")
+											}) : null,
+											/* @__PURE__ */ (0, react_jsx_runtime.jsx)(Diagnostics, { values: installation.diagnostics }),
+											/* @__PURE__ */ (0, react_jsx_runtime.jsx)(OperationError, {
+												action: `setEnabled:${installation.name}`,
+												feedback: mutationFeedback[`setEnabled:${installation.name}`],
+												t
+											})
 										]
 									}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 										className: PluginBridgeContent_module_css_default.actions,
@@ -155,11 +294,12 @@ window.__ModuleLoader__.load({
 											className: PluginBridgeContent_module_css_default.button,
 											"data-action": "set-enabled",
 											type: "button",
-											disabled: busy,
+											disabled: mutationFeedback[`setEnabled:${installation.name}`]?.status === "pending",
+											"aria-busy": mutationFeedback[`setEnabled:${installation.name}`]?.status === "pending",
 											onClick: () => {
 												onSetEnabled(installation.name, !installation.enabled);
 											},
-											children: t(installation.enabled ? "disable" : "enable")
+											children: t(mutationFeedback[`setEnabled:${installation.name}`]?.status === "pending" ? "working" : installation.enabled ? "disable" : "enable")
 										})
 									})]
 								}, installation.name))
@@ -188,12 +328,18 @@ window.__ModuleLoader__.load({
 									"data-action": "add-marketplace",
 									"data-primary": "true",
 									type: "button",
-									disabled: busy || marketplaceLocation.trim().length === 0,
+									disabled: addMarketplaceFeedback?.status === "pending" || marketplaceLocation.trim().length === 0,
+									"aria-busy": addMarketplaceFeedback?.status === "pending",
 									onClick: () => {
 										onAddMarketplace();
 									},
-									children: t("add")
+									children: t(addMarketplaceFeedback?.status === "pending" ? "working" : "add")
 								})]
+							}),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)(OperationError, {
+								action: "addMarketplace",
+								feedback: addMarketplaceFeedback,
+								t
 							}),
 							view.snapshot.marketplaces.length === 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
 								className: PluginBridgeContent_module_css_default.empty,
@@ -201,34 +347,12 @@ window.__ModuleLoader__.load({
 							}) : null,
 							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("ul", {
 								className: PluginBridgeContent_module_css_default.list,
-								children: view.snapshot.marketplaces.map((marketplace) => /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("li", {
-									className: PluginBridgeContent_module_css_default.row,
-									children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
-										className: PluginBridgeContent_module_css_default.main,
-										children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", {
-											className: PluginBridgeContent_module_css_default.name,
-											children: marketplace.name
-										}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
-											className: PluginBridgeContent_module_css_default.meta,
-											children: marketplace.provider
-										})]
-									}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-										className: PluginBridgeContent_module_css_default.actions,
-										children: marketplace.plugins.map((plugin) => /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("button", {
-											className: PluginBridgeContent_module_css_default.button,
-											"data-action": "install",
-											type: "button",
-											disabled: busy,
-											onClick: () => {
-												onInstall(plugin, marketplace.name);
-											},
-											children: [
-												t("install"),
-												" ",
-												plugin
-											]
-										}, plugin))
-									})]
+								children: view.snapshot.marketplaces.map((marketplace) => /* @__PURE__ */ (0, react_jsx_runtime.jsx)(MarketplaceCatalog, {
+									marketplace,
+									installations: view.snapshot.installations,
+									mutationFeedback,
+									t,
+									onInstall
 								}, marketplace.name))
 							})
 						]
@@ -252,27 +376,36 @@ window.__ModuleLoader__.load({
 									className: PluginBridgeContent_module_css_default.row,
 									children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 										className: PluginBridgeContent_module_css_default.main,
-										children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", {
-											className: PluginBridgeContent_module_css_default.name,
-											children: marketplace.name
-										}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
-											className: PluginBridgeContent_module_css_default.meta,
-											children: [
-												marketplace.locator,
-												" · ",
-												marketplace.sourceType,
-												marketplace.revision === void 0 ? "" : ` · ${marketplace.revision}`
-											]
-										})]
+										children: [
+											/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", {
+												className: PluginBridgeContent_module_css_default.name,
+												children: marketplace.name
+											}),
+											/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
+												className: PluginBridgeContent_module_css_default.meta,
+												children: [
+													marketplace.locator,
+													" · ",
+													marketplace.sourceType,
+													marketplace.revision === void 0 ? "" : ` · ${marketplace.revision}`
+												]
+											}),
+											/* @__PURE__ */ (0, react_jsx_runtime.jsx)(OperationError, {
+												action: `importMarketplace:${marketplace.ref}`,
+												feedback: mutationFeedback[`importMarketplace:${marketplace.ref}`],
+												t
+											})
+										]
 									}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
 										className: PluginBridgeContent_module_css_default.button,
 										"data-action": "import-marketplace",
 										type: "button",
-										disabled: busy,
+										disabled: mutationFeedback[`importMarketplace:${marketplace.ref}`]?.status === "pending",
+										"aria-busy": mutationFeedback[`importMarketplace:${marketplace.ref}`]?.status === "pending",
 										onClick: () => {
 											onImportMarketplace(marketplace.ref);
 										},
-										children: t("import")
+										children: t(mutationFeedback[`importMarketplace:${marketplace.ref}`]?.status === "pending" ? "working" : "import")
 									})]
 								}, marketplace.ref))
 							})
@@ -297,29 +430,38 @@ window.__ModuleLoader__.load({
 									className: PluginBridgeContent_module_css_default.row,
 									children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 										className: PluginBridgeContent_module_css_default.main,
-										children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", {
-											className: PluginBridgeContent_module_css_default.name,
-											children: plugin.name
-										}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
-											className: PluginBridgeContent_module_css_default.meta,
-											children: [
-												plugin.locator,
-												plugin.evidence,
-												plugin.version,
-												plugin.marketplace,
-												plugin.scope,
-												plugin.enabled === void 0 ? void 0 : t(plugin.enabled ? "foreignEnabled" : "foreignDisabled")
-											].filter((value) => value !== void 0).join(" · ")
-										})]
+										children: [
+											/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", {
+												className: PluginBridgeContent_module_css_default.name,
+												children: plugin.name
+											}),
+											/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+												className: PluginBridgeContent_module_css_default.meta,
+												children: [
+													plugin.locator,
+													plugin.evidence,
+													plugin.version,
+													plugin.marketplace,
+													plugin.scope,
+													plugin.enabled === void 0 ? void 0 : t(plugin.enabled ? "foreignEnabled" : "foreignDisabled")
+												].filter((value) => value !== void 0).join(" · ")
+											}),
+											/* @__PURE__ */ (0, react_jsx_runtime.jsx)(OperationError, {
+												action: `importLocal:${plugin.ref}`,
+												feedback: mutationFeedback[`importLocal:${plugin.ref}`],
+												t
+											})
+										]
 									}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
 										className: PluginBridgeContent_module_css_default.button,
 										"data-action": "import-local",
 										type: "button",
-										disabled: busy,
+										disabled: mutationFeedback[`importLocal:${plugin.ref}`]?.status === "pending",
+										"aria-busy": mutationFeedback[`importLocal:${plugin.ref}`]?.status === "pending",
 										onClick: () => {
 											onImportLocal(plugin.ref);
 										},
-										children: t("import")
+										children: t(mutationFeedback[`importLocal:${plugin.ref}`]?.status === "pending" ? "working" : "import")
 									})]
 								}, plugin.ref))
 							})
@@ -330,14 +472,36 @@ window.__ModuleLoader__.load({
 		}
 		//#endregion
 		//#region src/client/PluginBridgeSettingsTab.tsx
+		function installErrorKey(error) {
+			const reason = typeof error === "object" && error !== null && "reason" in error ? error.reason : void 0;
+			const structured = {
+				timeout: "installErrorTimeout",
+				source: "installErrorSource",
+				unsupported: "installErrorUnsupported",
+				invalid: "installErrorInvalid",
+				activation: "installErrorActivation",
+				"already-installed": "installErrorInstalled",
+				unknown: "installErrorGeneric"
+			};
+			if (typeof reason === "string" && reason in structured) return structured[reason];
+			const message = error instanceof Error ? error.message : "";
+			if (/timed?\s*out|timeout/iu.test(message)) return "installErrorTimeout";
+			if (/already installed/iu.test(message)) return "installErrorInstalled";
+			if (/unsupported package format|has no components supported|not supported/iu.test(message)) return "installErrorUnsupported";
+			if (/invalid (?:plugin )?manifest|manifest (?:is )?invalid|schema|parse|symlink|subdirectory|not a directory/iu.test(message)) return "installErrorInvalid";
+			if (/\bgit\b|clone|checkout|fetch|download|network|ECONN|ENOTFOUND|HTTP/iu.test(message)) return "installErrorSource";
+			return "installErrorGeneric";
+		}
+		function mutationErrorKey(action, error) {
+			return action.startsWith("install:") ? installErrorKey(error) : "mutationError";
+		}
 		/** Mounted settings tab that owns async loading, retry, and mutation state. */
 		function PluginBridgeSettingsTab(props) {
 			const { t, load } = props;
 			const mounted = (0, react.useRef)(true);
 			const [request, setRequest] = (0, react.useState)(0);
 			const [state, setState] = (0, react.useState)({ status: "loading" });
-			const [busyAction, setBusyAction] = (0, react.useState)(null);
-			const [mutationFailed, setMutationFailed] = (0, react.useState)(false);
+			const [mutationFeedback, setMutationFeedback] = (0, react.useState)({});
 			const [marketplaceLocation, setMarketplaceLocation] = (0, react.useState)("");
 			(0, react.useEffect)(() => {
 				mounted.current = true;
@@ -360,20 +524,31 @@ window.__ModuleLoader__.load({
 				setRequest((value) => value + 1);
 			};
 			const run = async (name, operation) => {
-				setBusyAction(name);
-				setMutationFailed(false);
+				setMutationFeedback((current) => ({
+					...current,
+					[name]: { status: "pending" }
+				}));
 				try {
 					const view = await operation();
 					if (mounted.current) setState({
 						status: "ready",
 						view
 					});
+					if (mounted.current) setMutationFeedback((current) => {
+						const next = { ...current };
+						delete next[name];
+						return next;
+					});
 					return true;
-				} catch {
-					if (mounted.current) setMutationFailed(true);
+				} catch (error) {
+					if (mounted.current) setMutationFeedback((current) => ({
+						...current,
+						[name]: {
+							status: "error",
+							messageKey: mutationErrorKey(name, error)
+						}
+					}));
 					return false;
-				} finally {
-					if (mounted.current) setBusyAction(null);
 				}
 			};
 			if (state.status === "loading") return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
@@ -389,12 +564,9 @@ window.__ModuleLoader__.load({
 				onClick: retry,
 				children: t("retry")
 			})] });
-			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [mutationFailed ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
-				role: "alert",
-				children: t("mutationError")
-			}) : null, /* @__PURE__ */ (0, react_jsx_runtime.jsx)(PluginBridgeContent, {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(PluginBridgeContent, {
 				view: state.view,
-				busyAction,
+				mutationFeedback,
 				marketplaceLocation,
 				t,
 				onMarketplaceLocationChange: setMarketplaceLocation,
@@ -406,18 +578,18 @@ window.__ModuleLoader__.load({
 					if (await run("addMarketplace", () => props.addMarketplace(location)) && mounted.current) setMarketplaceLocation("");
 				},
 				onImportMarketplace: async (ref) => {
-					await run("importMarketplace", () => props.importMarketplace(ref));
+					await run(`importMarketplace:${ref}`, () => props.importMarketplace(ref));
 				},
 				onImportLocal: async (ref) => {
-					await run("importLocal", () => props.importLocal(ref));
+					await run(`importLocal:${ref}`, () => props.importLocal(ref));
 				},
 				onInstall: async (name, marketplace) => {
-					await run("install", () => props.install(name, marketplace));
+					await run(`install:${marketplace}:${name}`, () => props.install(name, marketplace));
 				},
 				onSetEnabled: async (name, enabled) => {
-					await run("setEnabled", () => props.setEnabled(name, enabled));
+					await run(`setEnabled:${name}`, () => props.setEnabled(name, enabled));
 				}
-			})] });
+			});
 		}
 		//#endregion
 		//#region src/client/locales.ts
@@ -429,6 +601,13 @@ window.__ModuleLoader__.load({
 			loadError: "暂时无法读取插件桥接状态。",
 			retry: "重试",
 			mutationError: "操作失败，现有插件状态未改变。",
+			installErrorTimeout: "安装超时：插件源响应过慢，可以重试；详情见 Host 日志。",
+			installErrorInstalled: "该插件已经安装；重新扫描即可刷新状态。",
+			installErrorUnsupported: "无法安装：该插件没有当前桥接器支持的能力。",
+			installErrorInvalid: "安装失败：插件清单或目录结构无效；详情见 Host 日志。",
+			installErrorActivation: "能力加载失败：插件已下载，但某个 DSH 能力层无法挂载；详情见 Host 日志。",
+			installErrorSource: "下载失败：无法获取插件源；检查网络或源地址后重试。",
+			installErrorGeneric: "安装失败：Host 未能完成该操作；详情见 Host 日志。",
 			rescan: "重新扫描",
 			installed: "已安装",
 			installedEmpty: "尚未向 DSH 导入插件。",
@@ -436,6 +615,9 @@ window.__ModuleLoader__.load({
 			marketplaceLocation: "本地路径或 GitHub 市场地址",
 			add: "添加",
 			configuredEmpty: "尚未配置市场。",
+			plugins: "个插件",
+			searchPlugins: "搜索插件",
+			noPluginMatches: "没有匹配的插件。",
 			discoveredMarketplaces: "发现的市场注册",
 			discoveredMarketplacesEmpty: "未发现 Codex 或 Claude Code 市场注册。",
 			discoveredLocal: "发现的本地插件",
@@ -443,6 +625,7 @@ window.__ModuleLoader__.load({
 			rows: "层能力",
 			protected: "受保护",
 			unsupported: "暂不支持",
+			codexHostRequired: "此插件引用 Codex 中已注册的 App 连接。插件已导入；连接并登录 Codex 后可使用 App 功能。",
 			enabled: "已启用",
 			disabled: "已停用",
 			foreignEnabled: "源端已启用",
@@ -450,6 +633,8 @@ window.__ModuleLoader__.load({
 			enable: "启用",
 			disable: "停用",
 			install: "安装",
+			installing: "安装中…",
+			working: "处理中…",
 			import: "导入"
 		};
 		/** English dictionary checked against the Chinese key set. */
@@ -460,6 +645,13 @@ window.__ModuleLoader__.load({
 			loadError: "The plugin bridge is temporarily unavailable.",
 			retry: "Retry",
 			mutationError: "The operation failed. Existing plugin state was not changed.",
+			installErrorTimeout: "Install timed out because the plugin source responded too slowly. Retry or check Host logs.",
+			installErrorInstalled: "This plugin is already installed. Rescan to refresh its state.",
+			installErrorUnsupported: "Cannot install: this plugin has no capabilities supported by the current bridge.",
+			installErrorInvalid: "Install failed because the plugin manifest or directory structure is invalid. Check Host logs.",
+			installErrorActivation: "Capability loading failed. The plugin was downloaded, but a DSH capability row could not be mounted. Check Host logs.",
+			installErrorSource: "Download failed. Check the network or source address, then retry.",
+			installErrorGeneric: "Install failed because the Host could not complete the operation. Check Host logs.",
 			rescan: "Rescan",
 			installed: "Installed",
 			installedEmpty: "No plugins have been imported into DSH.",
@@ -467,6 +659,9 @@ window.__ModuleLoader__.load({
 			marketplaceLocation: "Local path or GitHub marketplace URL",
 			add: "Add",
 			configuredEmpty: "No marketplaces are configured.",
+			plugins: "plugins",
+			searchPlugins: "Search plugins",
+			noPluginMatches: "No matching plugins.",
 			discoveredMarketplaces: "Discovered marketplace registrations",
 			discoveredMarketplacesEmpty: "No Codex or Claude Code marketplace registrations were found.",
 			discoveredLocal: "Discovered local plugins",
@@ -474,6 +669,7 @@ window.__ModuleLoader__.load({
 			rows: "capability rows",
 			protected: "protected",
 			unsupported: "unsupported",
+			codexHostRequired: "This plugin references an App connection registered in Codex. The plugin is imported; connect and sign in to Codex to use its App capability.",
 			enabled: "Enabled",
 			disabled: "Disabled",
 			foreignEnabled: "Enabled at source",
@@ -481,10 +677,20 @@ window.__ModuleLoader__.load({
 			enable: "Enable",
 			disable: "Disable",
 			install: "Install",
+			installing: "Installing…",
+			working: "Working…",
 			import: "Import"
 		};
 		//#endregion
 		//#region src/client/view-model.ts
+		var PluginBridgeInstallError = class extends Error {
+			reason;
+			constructor(reason) {
+				super(`Plugin install failed: ${reason}`);
+				this.reason = reason;
+				this.name = "PluginBridgeInstallError";
+			}
+		};
 		function unwrap(endpoint, result) {
 			if (result.ok) return result.value;
 			throw new Error(`agentPluginsBridge.${endpoint} failed: ${result.error.code}: ${result.error.message}`);
@@ -530,7 +736,11 @@ window.__ModuleLoader__.load({
 				addMarketplace: (location) => mutate("addMarketplace", () => api.addMarketplace(location)),
 				importMarketplace: (ref) => mutate("importMarketplace", () => api.importMarketplace(ref)),
 				importLocal: (ref) => mutate("importLocal", () => api.importLocal(ref)),
-				install: (name, marketplace) => mutate("installPlugin", () => api.installPlugin(name, marketplace)),
+				install: async (name, marketplace) => {
+					const result = unwrapPluginBridgeMutation("installPlugin", await api.installPlugin(name, marketplace));
+					if (result.status === "failed") throw new PluginBridgeInstallError(result.reason);
+					return await loadPluginBridgeDiscoveries(api, result.snapshot);
+				},
 				setEnabled: (name, enabled) => mutate("setEnabled", () => api.setEnabled(name, enabled))
 			};
 		}
@@ -2319,6 +2529,62 @@ window.__ModuleLoader__.load({
 				return Promise.all(results).then((results) => {
 					return handleUnionResults(results, payload, inst, ctx);
 				});
+			};
+		});
+		const $ZodDiscriminatedUnion = /*@__PURE__*/ $constructor("$ZodDiscriminatedUnion", (inst, def) => {
+			def.inclusive = false;
+			$ZodUnion.init(inst, def);
+			const _super = inst._zod.parse;
+			defineLazy(inst._zod, "propValues", () => {
+				const propValues = {};
+				for (const option of def.options) {
+					const pv = option._zod.propValues;
+					if (!pv || Object.keys(pv).length === 0) throw new Error(`Invalid discriminated union option at index "${def.options.indexOf(option)}"`);
+					for (const [k, v] of Object.entries(pv)) {
+						if (!propValues[k]) propValues[k] = /* @__PURE__ */ new Set();
+						for (const val of v) propValues[k].add(val);
+					}
+				}
+				return propValues;
+			});
+			const disc = cached(() => {
+				const opts = def.options;
+				const map = /* @__PURE__ */ new Map();
+				for (const o of opts) {
+					const values = o._zod.propValues?.[def.discriminator];
+					if (!values || values.size === 0) throw new Error(`Invalid discriminated union option at index "${def.options.indexOf(o)}"`);
+					for (const v of values) {
+						if (map.has(v)) throw new Error(`Duplicate discriminator value "${String(v)}"`);
+						map.set(v, o);
+					}
+				}
+				return map;
+			});
+			inst._zod.parse = (payload, ctx) => {
+				const input = payload.value;
+				if (!isObject(input)) {
+					payload.issues.push({
+						code: "invalid_type",
+						expected: "object",
+						input,
+						inst
+					});
+					return payload;
+				}
+				const opt = disc.value.get(input?.[def.discriminator]);
+				if (opt) return opt._zod.run(payload, ctx);
+				if (def.unionFallback || ctx.direction === "backward") return _super(payload, ctx);
+				payload.issues.push({
+					code: "invalid_union",
+					errors: [],
+					note: "No matching discriminator",
+					discriminator: def.discriminator,
+					options: Array.from(disc.value.keys()),
+					input,
+					path: [def.discriminator],
+					inst
+				});
+				return payload;
 			};
 		});
 		const $ZodIntersection = /*@__PURE__*/ $constructor("$ZodIntersection", (inst, def) => {
@@ -4371,6 +4637,18 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 				...normalizeParams(params)
 			});
 		}
+		const ZodDiscriminatedUnion = /*@__PURE__*/ $constructor("ZodDiscriminatedUnion", (inst, def) => {
+			ZodUnion.init(inst, def);
+			$ZodDiscriminatedUnion.init(inst, def);
+		});
+		function discriminatedUnion(discriminator, options, params) {
+			return new ZodDiscriminatedUnion({
+				type: "union",
+				options,
+				discriminator,
+				...normalizeParams(params)
+			});
+		}
 		const ZodIntersection = /*@__PURE__*/ $constructor("ZodIntersection", (inst, def) => {
 			$ZodIntersection.init(inst, def);
 			ZodType.init(inst, def);
@@ -4619,6 +4897,7 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 			enabled: boolean(),
 			rowCount: number(),
 			protectedCount: number(),
+			requiredHosts: array(string()),
 			unsupportedCount: number(),
 			diagnostics: array(string())
 		});
@@ -4626,6 +4905,21 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 			marketplaces: array(marketplaceSchema),
 			installations: array(installationSchema)
 		});
+		const installResultSchema = discriminatedUnion("status", [object({
+			status: literal("installed"),
+			snapshot: snapshotSchema
+		}), object({
+			status: literal("failed"),
+			reason: _enum([
+				"timeout",
+				"source",
+				"unsupported",
+				"invalid",
+				"activation",
+				"already-installed",
+				"unknown"
+			])
+		})]);
 		const localDiscoverySchema = object({
 			candidates: array(object({
 				ref: string(),
@@ -4683,7 +4977,7 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 				descriptor("addMarketplace", [parameter("addMarketplace", "location", string())], "AgentPluginsSnapshot", snapshotSchema),
 				descriptor("importMarketplace", [parameter("importMarketplace", "ref", string())], "AgentPluginsSnapshot", snapshotSchema),
 				descriptor("importLocal", [parameter("importLocal", "ref", string())], "AgentPluginsSnapshot", snapshotSchema),
-				descriptor("installPlugin", [parameter("installPlugin", "name", string()), parameter("installPlugin", "marketplace", string())], "AgentPluginsSnapshot", snapshotSchema),
+				descriptor("installPlugin", [parameter("installPlugin", "name", string()), parameter("installPlugin", "marketplace", string())], "AgentPluginsInstallResult", installResultSchema),
 				descriptor("setEnabled", [parameter("setEnabled", "name", string()), parameter("setEnabled", "enabled", boolean())], "AgentPluginsSnapshot", snapshotSchema)
 			]
 		};

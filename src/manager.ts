@@ -23,6 +23,7 @@ import type {
   MarketplaceRegistrationCandidate,
   PackageComponent,
   PluginBridgeKernel,
+  RuntimeRequirement,
 } from './kernel.js'
 import { DirectoryPackageSource } from './package-source.js'
 import type {
@@ -64,6 +65,20 @@ export interface PluginBridgeManagerOptions {
   readonly git?: GitRepositoryAcquirer
 }
 
+export type PluginInstallPhase = 'activation'
+
+/** Installation failure annotated with the transaction phase that failed. */
+export class PluginInstallOperationError extends Error {
+  constructor(
+    readonly phase: PluginInstallPhase,
+    cause: unknown,
+  ) {
+    const detail = cause instanceof Error ? cause.message : String(cause)
+    super(`plugin ${phase} failed: ${detail}`, { cause })
+    this.name = 'PluginInstallOperationError'
+  }
+}
+
 /** Durable marketplace registration. */
 export interface RegisteredMarketplace {
   readonly name: string
@@ -81,6 +96,7 @@ export interface InstalledPlugin {
   readonly root: string
   readonly rows: readonly DshPluginRow[]
   readonly activations: readonly ActivationRequirement[]
+  readonly requirements: readonly RuntimeRequirement[]
   readonly unsupported: readonly PackageComponent[]
   readonly diagnostics?: readonly string[]
   readonly enabled: boolean
@@ -147,6 +163,19 @@ interface BridgeState {
 
 function emptyState(): BridgeState {
   return { version: STATE_VERSION, marketplaces: [], installations: [], approvals: [] }
+}
+
+function normalizePersistedRow(row: DshPluginRow): DshPluginRow {
+  if (row.name !== '@deepseek-ai/dsh-skill-filesystem') return row
+  const current = row.config
+  const roots = current?.customSkillDirs
+  if (current === undefined
+    || current.bundledSkillDir !== undefined
+    || !Array.isArray(roots)
+    || roots.length !== 1
+    || typeof roots[0] !== 'string') return row
+  const { customSkillDirs: _legacyRoots, ...config } = current
+  return { ...row, config: { ...config, bundledSkillDir: roots[0] } }
 }
 
 function localPath(location: string): string {
@@ -244,7 +273,9 @@ function stateRecord(value: unknown): BridgeState {
     marketplaces: state.marketplaces as RegisteredMarketplace[],
     installations: (state.installations as InstalledPlugin[]).map(installation => ({
       ...installation,
+      rows: installation.rows.map(normalizePersistedRow),
       activations: Array.isArray(installation.activations) ? installation.activations : [],
+      requirements: Array.isArray(installation.requirements) ? installation.requirements : [],
     })),
     approvals: Array.isArray(state.approvals) ? state.approvals : [],
   }
@@ -470,6 +501,7 @@ export class PluginBridgeManager {
     const stage = `${destination}.stage-${randomUUID()}`
     let promoted = false
     let created: string[] = []
+    let pluginDataRoot: string | undefined
     try {
       await cp(candidate.root, stage, {
         recursive: true,
@@ -482,15 +514,15 @@ export class PluginBridgeManager {
 
       const packageSource = new DirectoryPackageSource(destination)
       const detected = this.kernel.detectPackageFormat(packageSource)
-      const pluginDataRoot = join(this.storageDir, 'data', 'imports', digest)
+      pluginDataRoot = join(this.storageDir, 'data', 'imports', digest)
       await mkdir(pluginDataRoot, { recursive: true, mode: 0o700 })
       const materialized = this.kernel.materializePackage(packageSource, detected, { pluginDataRoot })
-      if (materialized.rows.length === 0) {
+      if (materialized.rows.length === 0 && materialized.requirements.length === 0) {
         throw new Error(`plugin "${candidate.name}" has no components supported by the active dsh bridge`)
       }
       for (const row of this.rowsAllowedByPolicy(materialized.rows, materialized.activations)) {
         try {
-          await this.loader.create(row)
+          await this.createRow(row)
           created.push(row.id)
         } catch (error: unknown) {
           try { await this.loader.remove(row.id) } catch { /* failed Loader create owns its rollback */ }
@@ -508,6 +540,7 @@ export class PluginBridgeManager {
         root: destination,
         rows: structuredClone(materialized.rows),
         activations: structuredClone(materialized.activations),
+        requirements: structuredClone(materialized.requirements),
         unsupported: structuredClone(materialized.unsupported),
         ...combinedDiagnostics.length === 0 ? {} : { diagnostics: structuredClone(combinedDiagnostics) },
         enabled: true,
@@ -525,6 +558,13 @@ export class PluginBridgeManager {
       await this.removeRows(created)
       if (promoted) await this.moveToTrash(destination)
       else await rm(stage, { recursive: true, force: true })
+      if (pluginDataRoot !== undefined) {
+        try {
+          await this.moveToTrash(pluginDataRoot)
+        } catch (cleanupError: unknown) {
+          if ((cleanupError as NodeJS.ErrnoException).code !== 'ENOENT') throw cleanupError
+        }
+      }
       throw error
     }
   }
@@ -533,8 +573,11 @@ export class PluginBridgeManager {
   async start(): Promise<void> {
     if (this.started) return
     await mkdir(this.storageDir, { recursive: true, mode: 0o700 })
+    let normalizedPersistedState = false
     try {
-      this.state = stateRecord(JSON.parse(await readFile(this.statePath(), 'utf8')) as unknown)
+      const persisted = JSON.parse(await readFile(this.statePath(), 'utf8')) as unknown
+      this.state = stateRecord(persisted)
+      normalizedPersistedState = JSON.stringify(this.state) !== JSON.stringify(persisted)
     } catch (error: unknown) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
     }
@@ -547,11 +590,13 @@ export class PluginBridgeManager {
       for (const installation of this.state.installations) {
         if (!installation.enabled) continue
         for (const row of this.rowsAllowedByPolicy(installation.rows, installation.activations)) {
-          await this.loader.create(row)
+          await this.createRow(row)
           created.push(row.id)
         }
       }
-      if (JSON.stringify(this.state) !== JSON.stringify(originalState)) await this.writeState()
+      if (normalizedPersistedState || JSON.stringify(this.state) !== JSON.stringify(originalState)) {
+        await this.writeState()
+      }
     } catch (error: unknown) {
       this.state = originalState
       await this.removeRows(created)
@@ -686,16 +731,16 @@ export class PluginBridgeManager {
       const pluginDataRoot = join(this.storageDir, 'data', marketplaceName, name)
       await mkdir(pluginDataRoot, { recursive: true, mode: 0o700 })
       const materialized = this.kernel.materializePackage(packageSource, detected, { pluginDataRoot })
-      if (materialized.rows.length === 0) {
+      if (materialized.rows.length === 0 && materialized.requirements.length === 0) {
         throw new Error(`plugin "${name}" has no components supported by the active dsh bridge`)
       }
       for (const row of this.rowsAllowedByPolicy(materialized.rows, materialized.activations)) {
         try {
-          await this.loader.create(row)
+          await this.createRow(row)
           created.push(row.id)
         } catch (error: unknown) {
           try { await this.loader.remove(row.id) } catch { /* failed Loader create owns its rollback */ }
-          throw error
+          throw new PluginInstallOperationError('activation', error)
         }
       }
       const installation: InstalledPlugin = {
@@ -705,6 +750,7 @@ export class PluginBridgeManager {
         root: destination,
         rows: structuredClone(materialized.rows),
         activations: structuredClone(materialized.activations),
+        requirements: structuredClone(materialized.requirements),
         unsupported: structuredClone(materialized.unsupported),
         ...materialized.diagnostics === undefined
           ? {}
@@ -789,7 +835,7 @@ export class PluginBridgeManager {
         const row = current.rows.find(item => item.id === requirement.rowId)
         if (row === undefined) throw new Error(`gated row "${requirement.rowId}" is not in the installation plan`)
         try {
-          await this.loader.create(row)
+          await this.createRow(row)
           created.push(row.id)
         } catch (error: unknown) {
           try { await this.loader.remove(row.id) } catch { /* failed Loader create owns its rollback */ }
@@ -825,7 +871,7 @@ export class PluginBridgeManager {
     } catch (error: unknown) {
       this.state.installations[index] = current
       for (const row of current.rows.filter(row => removed.includes(row.id))) {
-        await this.loader.create(row)
+        await this.createRow(row)
         this.activeRowIds.push(row.id)
       }
       throw error
@@ -846,7 +892,7 @@ export class PluginBridgeManager {
     try {
       for (const row of this.rowsAllowedByPolicy(current.rows, current.activations)) {
         try {
-          await this.loader.create(row)
+          await this.createRow(row)
           created.push(row.id)
         } catch (error: unknown) {
           try { await this.loader.remove(row.id) } catch { /* failed Loader create owns its rollback */ }
@@ -983,7 +1029,7 @@ export class PluginBridgeManager {
       this.state.installations[index] = current
       this.state.approvals.splice(0, this.state.approvals.length, ...previousApprovals)
       for (const row of [...removed].reverse()) {
-        await this.loader.create(row)
+        await this.createRow(row)
         this.activeRowIds.push(row.id)
       }
       throw error
@@ -1004,6 +1050,11 @@ export class PluginBridgeManager {
           && approval.rowId === requirement.rowId
           && approval.digest === requirement.digest)
     })
+  }
+
+  /** Cordis Loader owns and normalizes the options object it receives. */
+  private createRow(row: DshPluginRow): Promise<string> {
+    return this.loader.create(structuredClone(row))
   }
 
   private async acquireSource(

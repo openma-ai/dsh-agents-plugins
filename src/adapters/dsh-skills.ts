@@ -15,7 +15,7 @@ export const dshSkillsAdapter: ComponentAdapter = {
       config: {
         providerName: `plugin-bridge-${plugin}-${component}`,
         includeDefaultRoots: false,
-        customSkillDirs: [insidePlugin(input, input.component.path)],
+        bundledSkillDir: insidePlugin(input, input.component.path),
       },
     }]
   },

@@ -127,7 +127,7 @@ test('mutation callbacks reuse the returned durable snapshot and rescan only for
     },
     installPlugin: async (name: string, marketplace: string) => {
       calls.push(`install:${name}@${marketplace}`)
-      return { ok: true as const, value: snapshot }
+      return { ok: true as const, value: { status: 'installed' as const, snapshot } }
     },
   }
 
@@ -135,4 +135,24 @@ test('mutation callbacks reuse the returned durable snapshot and rescan only for
 
   assert.deepEqual(await face.install('demo', 'team'), { snapshot, local, marketplaces })
   assert.deepEqual(calls, ['install:demo@team', 'discoverLocal', 'discoverMarketplaces'])
+})
+
+test('an install failure preserves its Host-classified reason without exposing Host details', async () => {
+  const client = await import('../src/client/register.js')
+  const api = {
+    installPlugin: async () => ({
+      ok: true as const,
+      value: { status: 'failed' as const, reason: 'unsupported' as const },
+    }),
+  }
+  const face = client.createPluginBridgeSettingsFace(api as never)
+
+  await assert.rejects(
+    () => face.install('demo', 'team'),
+    (error: unknown) => (
+      error instanceof Error
+      && error.message === 'Plugin install failed: unsupported'
+      && (error as Error & { reason?: string }).reason === 'unsupported'
+    ),
+  )
 })

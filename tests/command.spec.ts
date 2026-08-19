@@ -14,8 +14,6 @@ const USAGE = [
   '/plugin-bridge install <plugin>@<marketplace>',
   '/plugin-bridge discover',
   '/plugin-bridge import <locator:key>',
-  '/plugin-bridge hooks review [plugin]',
-  '/plugin-bridge hooks approve <plugin> <sha256>',
   '/plugin-bridge enable <plugin>',
   '/plugin-bridge disable <plugin>',
   '/plugin-bridge uninstall <plugin>',
@@ -67,6 +65,10 @@ test('/plugin-bridge rejects unsupported subcommands with the owned usage', () =
     kind: 'error',
     text: `Unsupported plugin bridge command.\n${USAGE}`,
   })
+  assert.deepEqual(executePluginBridgeCommand(kernel, 'hooks review demo'), {
+    kind: 'error',
+    text: `Unsupported plugin bridge command.\n${USAGE}`,
+  })
 })
 
 test('/plugin-bridge management commands call the one runtime manager', async () => {
@@ -95,6 +97,7 @@ test('/plugin-bridge management commands call the one runtime manager', async ()
         name: 'demo', marketplace: 'import:codex-local-cache', format: 'codex-legacy', root: '/demo',
         rows: [{ id: 'demo-skill', name: '@deepseek-ai/dsh-skill-filesystem' }],
         activations: [],
+        requirements: [],
         unsupported: [], enabled: true,
       }
     },
@@ -123,13 +126,14 @@ test('/plugin-bridge management commands call the one runtime manager', async ()
         name: 'demo', marketplace: 'company', format: 'claude-code-legacy', root: '/demo',
         rows: [{ id: 'demo-skill', name: '@deepseek-ai/dsh-skill-filesystem' }],
         activations: [],
+        requirements: [],
         unsupported: [{ type: 'app', path: '.app.json' }], enabled: true,
       }
     },
     async reviewActivations(policy, plugin) {
       calls.push(`review:${policy}:${plugin ?? '*'}`)
       return [{
-        plugin: 'demo', approved: false, policy: 'hook-user-approval', rowId: 'demo-hook',
+        plugin: 'demo', approved: false, policy, rowId: 'demo-hook',
         digest: 'a'.repeat(64), review: 'Plugin: demo\nDefinition:\n{}',
       }]
     },
@@ -174,16 +178,6 @@ test('/plugin-bridge management commands call the one runtime manager', async ()
   ), {
     kind: 'success', text: 'Imported marketplace company (claude-code-marketplace).',
   })
-  assert.deepEqual(await executePluginBridgeCommand(kernel, 'hooks review demo', runtime), {
-    kind: 'success', text: '[demo] pending demo-hook\nPlugin: demo\nDefinition:\n{}',
-  })
-  assert.deepEqual(await executePluginBridgeCommand(
-    kernel,
-    `hooks approve demo ${'a'.repeat(64)}`,
-    runtime,
-  ), {
-    kind: 'success', text: `Approved demo hooks at digest ${'a'.repeat(64)}.`,
-  })
   assert.deepEqual(await executePluginBridgeCommand(kernel, 'disable demo', runtime), {
     kind: 'success', text: 'Disabled demo.',
   })
@@ -197,7 +191,6 @@ test('/plugin-bridge management commands call the one runtime manager', async ()
     'add:/catalog', 'install:demo@company', 'discover',
     'import:codex-local-cache:personal/demo/1.0.0',
     'marketplace-discover', 'marketplace-import:claude-code-registered-marketplaces:company',
-    'review:hook-user-approval:demo', `approve:hook-user-approval:demo:${'a'.repeat(64)}`,
     'disable:demo', 'enable:demo', 'uninstall:demo',
   ])
 })

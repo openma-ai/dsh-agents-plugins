@@ -7,8 +7,10 @@ import {
   type PluginPackageSource,
 } from '../src/kernel.js'
 import { dshHooksAdapter } from '../src/adapters/dsh-hooks.js'
+import { dshLspAdapter } from '../src/adapters/dsh-lsp.js'
 import { dshAgentPluginsMcpAdapter } from '../src/adapters/dsh-agent-plugins-mcp.js'
 import { dshMcpAdapter } from '../src/adapters/dsh-mcp.js'
+import { dshPromptCommandsAdapter } from '../src/adapters/dsh-prompt-commands.js'
 import { dshSkillsAdapter } from '../src/adapters/dsh-skills.js'
 
 function source(files: Record<string, unknown>, texts: Record<string, string> = {}): PluginPackageSource {
@@ -23,7 +25,7 @@ function source(files: Record<string, unknown>, texts: Record<string, string> = 
   }
 }
 
-test('hook adapters attach digest-bound approval evidence to their own row', () => {
+test('Codex hook rows activate at explicit import without a duplicate approval gate', () => {
   const kernel = new PluginBridgeKernel(new Context())
   kernel.registerComponentAdapter(dshHooksAdapter)
   const hookText = '{"hooks":{"SessionStart":[]}}\n'
@@ -34,16 +36,22 @@ test('hook adapters attach digest-bound approval evidence to their own row', () 
     { type: 'hook', path: 'hooks/hooks.json' },
   ]))
 
-  assert.deepEqual(result.activations, [{
-    policy: 'hook-user-approval',
-    rowId: 'plugin-bridge-demo-plugin-hook-codex',
-    digest: '7d30ac1191a993b3406697fa7488c5f22a490013a19ef4a765be8d6229dde112',
-    metadata: {
-      configPath: '/fixture/plugin/hooks/hooks.json',
-      componentPath: 'hooks/hooks.json',
-      pluginName: 'demo-plugin',
-    },
-  }])
+  assert.deepEqual(result.activations, [])
+  assert.equal(result.rows[0]?.name, '@openma/dsh-agents-plugins-bridge/hooks-codex')
+})
+
+test('Claude Code hook rows activate at explicit import without a duplicate approval gate', () => {
+  const kernel = new PluginBridgeKernel(new Context())
+  kernel.registerComponentAdapter(dshHooksAdapter)
+  const hookText = '{"hooks":{"SessionStart":[]}}\n'
+
+  const result = kernel.materializePackage(source({
+    'hooks/hooks.json': { hooks: { SessionStart: [] } },
+  }, { 'hooks/hooks.json': hookText }), detected('claude-code-legacy', [
+    { type: 'hook', path: 'hooks/hooks.json' },
+  ]))
+
+  assert.deepEqual(result.activations, [])
 })
 
 function detected(
@@ -100,7 +108,7 @@ test('legacy materialization keeps each contributed capability in a separate dsh
       config: {
         providerName: 'plugin-bridge-demo-plugin-skills',
         includeDefaultRoots: false,
-        customSkillDirs: ['/fixture/plugin/skills'],
+        bundledSkillDir: '/fixture/plugin/skills',
       },
     },
     {
@@ -255,7 +263,7 @@ test('Codex MCP accepts the documented mcp_servers wrapper', () => {
   }])
 })
 
-test('Codex and Claude hook components reuse the matching dsh hook bridge', () => {
+test('Codex and Claude hook components use bridge-owned hosts for the matching dsh hook plugin', () => {
   const kernel = new PluginBridgeKernel(new Context())
   kernel.registerComponentAdapter(dshHooksAdapter)
   const packageSource = source({
@@ -267,7 +275,7 @@ test('Codex and Claude hook components reuse the matching dsh hook bridge', () =
     { type: 'hook', path: 'hooks/hooks.json' },
   ]), { pluginDataRoot: '/fixture/data/demo-plugin' }).rows, [{
     id: 'plugin-bridge-demo-plugin-hook-codex',
-    name: '@deepseek-ai/dsh-hooks-codex',
+    name: '@openma/dsh-agents-plugins-bridge/hooks-codex',
     config: {
       configPath: '/fixture/plugin/hooks/hooks.json',
       pluginRoot: '/fixture/plugin',
@@ -279,7 +287,7 @@ test('Codex and Claude hook components reuse the matching dsh hook bridge', () =
     { type: 'hook', path: '.claude-plugin/plugin.json', manifestField: 'hooks' },
   ]), { pluginDataRoot: '/fixture/data/demo-plugin' }).rows, [{
     id: 'plugin-bridge-demo-plugin-hook-claude-code',
-    name: '@deepseek-ai/dsh-hooks-claude-code',
+    name: '@openma/dsh-agents-plugins-bridge/hooks-claude-code',
     config: {
       configPath: '/fixture/plugin/.claude-plugin/plugin.json',
       pluginRoot: '/fixture/plugin',
@@ -319,6 +327,173 @@ test('unsupported legacy components remain explicit instead of disappearing', ()
 
   assert.deepEqual(result.rows.map(row => row.name), ['@deepseek-ai/dsh-skill-filesystem'])
   assert.deepEqual(result.unsupported, [{ type: 'app', path: '.app.json' }])
+})
+
+test('Codex registered App connections become explicit foreign-host requirements', async () => {
+  const bridge = await import('../src/index.js')
+  const adapter = (bridge as Record<string, unknown>).dshCodexAppsAdapter as
+    | Parameters<PluginBridgeKernel['registerComponentAdapter']>[0]
+    | undefined
+  assert.ok(adapter, 'the Codex Apps adapter must be exported')
+  const kernel = new PluginBridgeKernel(new Context())
+  kernel.registerComponentAdapter(adapter)
+  const result = kernel.materializePackage(source({
+    '.app.json': {
+      apps: {
+        sites: { id: 'connector_sites', required: true },
+      },
+    },
+  }), detected('codex-legacy', [{ type: 'app', path: '.app.json' }]))
+
+  assert.deepEqual(result.unsupported, [])
+  assert.equal(result.rows.length, 2)
+  assert.equal(result.rows[0]?.id, 'plugin-bridge-demo-plugin-codex-app-sites')
+  assert.equal(result.rows[0]?.name, '@deepseek-ai/dsh-mcp-client')
+  assert.deepEqual(result.rows[0]?.config, {
+    transport: 'stdio',
+    serverName: 'demo-plugin-codex-sites',
+    command: process.execPath,
+    args: [
+      (result.rows[0]?.config?.args as unknown[])[0],
+      '--app-name', 'sites',
+      '--connection-id', 'connector_sites',
+      '--cwd', '/fixture/plugin',
+    ],
+    env: {},
+    cwd: '/fixture/plugin',
+    failOnStartupError: false,
+  })
+  assert.match(String((result.rows[0]?.config?.args as unknown[])[0]), /codex-host-relay-cli\.js$/)
+  assert.deepEqual(result.rows[1], {
+    id: 'plugin-bridge-demo-plugin-codex-app-sites-approval',
+    name: '@openma/dsh-agents-plugins-bridge/policies/codex-app-tool-approval',
+    config: {
+      appName: 'sites',
+      connectionId: 'connector_sites',
+      serverName: 'demo-plugin-codex-sites',
+      cwd: '/fixture/plugin',
+    },
+  })
+  assert.deepEqual((result as unknown as { requirements: readonly unknown[] }).requirements, [{
+    kind: 'foreign-host',
+    host: 'codex',
+    capability: 'registered-app-connection',
+    componentPath: '.app.json',
+    metadata: {
+      app: 'sites',
+      connectionId: 'connector_sites',
+      required: true,
+    },
+  }])
+})
+
+test('Codex App connections resolved by a same-name MCP server do not require its host', async () => {
+  const bridge = await import('../src/index.js')
+  const adapter = (bridge as Record<string, unknown>).dshCodexAppsAdapter as
+    | Parameters<PluginBridgeKernel['registerComponentAdapter']>[0]
+    | undefined
+  assert.ok(adapter, 'the Codex Apps adapter must be exported')
+  const kernel = new PluginBridgeKernel(new Context())
+  kernel.registerComponentAdapter(adapter)
+  kernel.registerComponentAdapter(dshMcpAdapter)
+  const result = kernel.materializePackage(source({
+    '.app.json': { apps: { linear: { id: 'asdk_app_linear', required: true } } },
+    '.mcp.json': {
+      mcpServers: {
+        linear: { url: 'https://mcp.linear.test/mcp' },
+      },
+    },
+  }), detected('codex-legacy', [
+    { type: 'mcp-server', path: '.mcp.json' },
+    { type: 'app', path: '.app.json' },
+  ]))
+
+  assert.equal(result.rows.length, 1)
+  assert.deepEqual(result.requirements, [])
+  assert.deepEqual(result.unsupported, [])
+})
+
+test('Claude commands and Pi prompts materialize as separately disposable command producers', () => {
+  const kernel = new PluginBridgeKernel(new Context())
+  kernel.registerComponentAdapter(dshPromptCommandsAdapter)
+
+  const claude = kernel.materializePackage(source({ 'commands/': true }), detected(
+    'claude-code-legacy',
+    [{ type: 'command', path: 'commands/' }],
+  ))
+  assert.deepEqual(claude.rows, [{
+    id: 'plugin-bridge-demo-plugin-command-commands',
+    name: '@openma/dsh-agents-plugins-bridge/prompt-commands',
+    config: {
+      dialect: 'claude-code',
+      pluginName: 'demo-plugin',
+      pluginRoot: '/fixture/plugin',
+      componentPath: 'commands/',
+    },
+  }])
+  assert.deepEqual(claude.unsupported, [])
+
+  const pi = kernel.materializePackage(source({ 'prompts/': true }), {
+    provider: 'pi-package',
+    manifestPath: 'package.json',
+    manifest: { name: 'demo-plugin' },
+    components: [{
+      type: 'pi-prompt-set',
+      path: 'package.json',
+      manifestField: 'pi.prompts',
+      metadata: { entries: ['prompts/**', '!prompts/legacy/**'] },
+    }],
+  })
+  assert.deepEqual(pi.rows, [{
+    id: 'plugin-bridge-demo-plugin-prompt-prompts',
+    name: '@openma/dsh-agents-plugins-bridge/prompt-commands',
+    config: {
+      dialect: 'pi',
+      pluginName: 'demo-plugin',
+      pluginRoot: '/fixture/plugin',
+      entries: ['prompts/**', '!prompts/legacy/**'],
+    },
+  }])
+  assert.deepEqual(pi.unsupported, [])
+})
+
+test('Claude LSP servers become independent DSH stdio providers with workspace semantics owned by DSH', () => {
+  const kernel = new PluginBridgeKernel(new Context())
+  kernel.registerComponentAdapter(dshLspAdapter)
+  const result = kernel.materializePackage(source({
+    '.lsp.json': {
+      typescript: {
+        command: 'typescript-language-server',
+        args: ['--stdio', '${CLAUDE_PLUGIN_ROOT}/tsconfig.json'],
+        env: { PLUGIN_HOME: '${CLAUDE_PLUGIN_ROOT}' },
+        extensionToLanguage: { '.ts': 'typescript', '.tsx': 'typescriptreact' },
+        initializationOptions: { preferences: { includePackageJsonAutoImports: 'on' } },
+        workspaceFolder: '${CLAUDE_PROJECT_DIR}',
+        startupTimeout: 120000,
+      },
+    },
+  }), detected('claude-code-legacy', [{ type: 'lsp-server', path: '.lsp.json' }]))
+
+  assert.deepEqual(result.rows, [{
+    id: 'plugin-bridge-demo-plugin-lsp-typescript',
+    name: '@deepseek-ai/dsh-lsp-stdio',
+    config: {
+      servers: {
+        'plugin-bridge-demo-plugin-typescript': {
+          command: 'typescript-language-server',
+          args: ['--stdio', '/fixture/plugin/tsconfig.json'],
+          env: { PLUGIN_HOME: '/fixture/plugin' },
+          extensionToLanguage: { '.ts': 'typescript', '.tsx': 'typescriptreact' },
+          initializationOptions: { preferences: { includePackageJsonAutoImports: 'on' } },
+        },
+      },
+    },
+  }])
+  assert.deepEqual(result.diagnostics, [
+    'claude-code-legacy: lspServers.typescript.workspaceFolder is handled by DSH per query',
+    'claude-code-legacy: lspServers.typescript.startupTimeout has no DSH provider setting and was ignored',
+  ])
+  assert.deepEqual(result.unsupported, [])
 })
 
 test('one component claimed by two adapters fails before producing partial rows', () => {

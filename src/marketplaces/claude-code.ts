@@ -5,6 +5,7 @@ import type {
 } from './types.js'
 import type { Context } from '@deepseek-ai/cordis'
 import {
+  parseGitRepositorySource,
   parseGitHubRepositorySource,
   parseMarketplaceRelativeDirectory,
   parsePluginEntry,
@@ -37,7 +38,22 @@ export const claudeCodeMarketplaceProvider: MarketplaceCatalogProvider = {
 
 function parseClaudeCodeSource(value: unknown, field: string): MarketplacePluginSource {
   if (typeof value === 'string') return parseMarketplaceRelativeDirectory(value, field)
-  return parseGitHubRepositorySource(requireRecord(value, field), field)
+  const source = requireRecord(value, field)
+  if (source.source === 'url' || source.source === 'git-subdir') {
+    return parseGitRepositorySource(source, field, { allowUrlSubdirectory: true })
+  }
+  if (source.source === 'npm') {
+    throw new TypeError(`${field}: npm marketplace sources are documented but not supported by this bridge`)
+  }
+  if (source.commit === undefined) return parseGitHubRepositorySource(source, field)
+  if (typeof source.commit !== 'string' || !/^[a-f0-9]{40}$/iu.test(source.commit)) {
+    throw new TypeError(`${field}.commit must be a 40-character Git commit`)
+  }
+  // Anthropic's installed official catalog includes a provenance `commit`
+  // beside the documented install pin `sha`; validate it, then retain `sha`
+  // as the sole acquisition revision.
+  const { commit: _commit, ...documentedSource } = source
+  return parseGitHubRepositorySource(documentedSource, field)
 }
 
 export const name = 'plugin-bridge-marketplace-claude-code'

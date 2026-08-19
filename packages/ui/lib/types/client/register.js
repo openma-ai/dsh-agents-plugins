@@ -1,4 +1,4 @@
-import { loadPluginBridgeDiscoveries, loadPluginBridgeView, unwrapPluginBridgeMutation, } from "./view-model.js";
+import { loadPluginBridgeDiscoveries, loadPluginBridgeView, PluginBridgeInstallError, unwrapPluginBridgeMutation, } from "./view-model.js";
 export const PLUGIN_BRIDGE_LOCALE = 'settings.pluginBridge';
 /** Project the Remote namespace into callback-only component injection. */
 export function createPluginBridgeSettingsFace(api) {
@@ -13,7 +13,12 @@ export function createPluginBridgeSettingsFace(api) {
         addMarketplace: location => mutate('addMarketplace', () => api.addMarketplace(location)),
         importMarketplace: ref => mutate('importMarketplace', () => api.importMarketplace(ref)),
         importLocal: ref => mutate('importLocal', () => api.importLocal(ref)),
-        install: (name, marketplace) => mutate('installPlugin', () => api.installPlugin(name, marketplace)),
+        install: async (name, marketplace) => {
+            const result = unwrapPluginBridgeMutation('installPlugin', await api.installPlugin(name, marketplace));
+            if (result.status === 'failed')
+                throw new PluginBridgeInstallError(result.reason);
+            return await loadPluginBridgeDiscoveries(api, result.snapshot);
+        },
         setEnabled: (name, enabled) => mutate('setEnabled', () => api.setEnabled(name, enabled)),
     };
 }

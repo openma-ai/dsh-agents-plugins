@@ -8,7 +8,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/openma-ai/dsh-agents-plugins.git",
+    "url": "git+https://github.com/openma-ai/dsh-agents-plugins-bridge.git",
     "directory": "packages/ui"
   },
   "type": "module",
@@ -27,6 +27,7 @@
       "types": "./lib/types/types.d.ts",
       "default": "./lib/types/types.js"
     },
+    "./cordis.patch.yml": "./cordis.patch.yml",
     "./package.json": "./package.json"
   },
   "files": [
@@ -35,10 +36,14 @@
     "lib/client.js.map",
     "lib/types/**/*.js",
     "lib/types/**/*.d.ts",
+    "cordis.patch.yml",
     "README.md",
     "LICENSE"
   ],
   "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
     "client": {
       "inject": [
         "@deepseek-ai/dsh-api-remotes",

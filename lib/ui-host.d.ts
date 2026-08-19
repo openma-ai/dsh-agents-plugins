@@ -14,6 +14,7 @@ export interface AgentPluginsInstallationView {
     readonly enabled: boolean;
     readonly rowCount: number;
     readonly protectedCount: number;
+    readonly requiredHosts: readonly string[];
     readonly unsupportedCount: number;
     readonly diagnostics: readonly string[];
 }
@@ -22,6 +23,14 @@ export interface AgentPluginsSnapshot {
     readonly marketplaces: readonly AgentPluginsMarketplaceView[];
     readonly installations: readonly AgentPluginsInstallationView[];
 }
+export type AgentPluginsInstallFailureReason = 'timeout' | 'source' | 'unsupported' | 'invalid' | 'activation' | 'already-installed' | 'unknown';
+export type AgentPluginsInstallResult = {
+    readonly status: 'installed';
+    readonly snapshot: AgentPluginsSnapshot;
+} | {
+    readonly status: 'failed';
+    readonly reason: AgentPluginsInstallFailureReason;
+};
 /** One foreign-agent plugin found locally but not yet imported. */
 export interface AgentPluginsLocalCandidateView {
     readonly ref: string;
@@ -70,7 +79,7 @@ export declare class AgentPluginsGateway extends TypertRemoteService {
     /** Import one discovered foreign plugin by its opaque ref. */
     importLocal(ref: string): Promise<AgentPluginsSnapshot>;
     /** Install a named plugin from one Bridge-owned marketplace. */
-    installPlugin(name: string, marketplace: string): Promise<AgentPluginsSnapshot>;
+    installPlugin(name: string, marketplace: string): Promise<AgentPluginsInstallResult>;
     /** Enable or disable one Bridge-owned installation. */
     setEnabled(name: string, enabled: boolean): Promise<AgentPluginsSnapshot>;
 }

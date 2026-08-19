@@ -1,10 +1,10 @@
-import React, { type ChangeEvent, type ReactNode } from 'react'
+import React, { useState, type ChangeEvent, type ReactNode } from 'react'
 import type { PluginBridgeView } from '../types.ts'
 import css from './PluginBridgeContent.module.css'
 
 export interface PluginBridgeContentProps {
   readonly view: PluginBridgeView
-  readonly busyAction: string | null
+  readonly mutationFeedback?: Readonly<Record<string, PluginBridgeMutationFeedback>>
   readonly marketplaceLocation: string
   readonly t: (key: string) => string
   readonly onMarketplaceLocationChange: (value: string) => void
@@ -16,9 +16,32 @@ export interface PluginBridgeContentProps {
   readonly onSetEnabled: (name: string, enabled: boolean) => Promise<void>
 }
 
+export type PluginBridgeMutationFeedback =
+  | { readonly status: 'pending' }
+  | { readonly status: 'error'; readonly messageKey: string }
+
 function Diagnostics({ values }: { readonly values: readonly string[] }): ReactNode {
   if (values.length === 0) return null
   return <ul className={css.diagnostic}>{values.map(value => <li key={value}>{value}</li>)}</ul>
+}
+
+function OperationError({
+  action,
+  feedback,
+  t,
+}: {
+  readonly action: string
+  readonly feedback: PluginBridgeMutationFeedback | undefined
+  readonly t: (key: string) => string
+}): ReactNode {
+  if (feedback?.status !== 'error') return null
+  return (
+    <span
+      className={css.operationError}
+      data-operation-error={action}
+      role="alert"
+    >{t(feedback.messageKey)}</span>
+  )
 }
 
 function Heading({ label, count }: { readonly label: string; readonly count: number }): ReactNode {
@@ -30,10 +53,88 @@ function Heading({ label, count }: { readonly label: string; readonly count: num
   )
 }
 
+interface MarketplaceCatalogProps {
+  readonly marketplace: PluginBridgeView['snapshot']['marketplaces'][number]
+  readonly installations: PluginBridgeView['snapshot']['installations']
+  readonly mutationFeedback: Readonly<Record<string, PluginBridgeMutationFeedback>>
+  readonly t: (key: string) => string
+  readonly onInstall: (name: string, marketplace: string) => Promise<void>
+}
+
+/** Progressive catalog disclosure keeps large marketplaces usable inside Settings. */
+function MarketplaceCatalog({ marketplace, installations, mutationFeedback, t, onInstall }: MarketplaceCatalogProps): ReactNode {
+  const [query, setQuery] = useState('')
+  const normalizedQuery = query.trim().toLocaleLowerCase()
+  const visiblePlugins = normalizedQuery.length === 0
+    ? marketplace.plugins
+    : marketplace.plugins.filter(plugin => plugin.toLocaleLowerCase().includes(normalizedQuery))
+  const pluginCount = `${String(marketplace.plugins.length)} ${t('plugins')}`
+  return (
+    <li className={css.catalogItem}>
+      <details className={css.catalog} data-catalog={marketplace.name}>
+        <summary
+          className={css.catalogSummary}
+          data-catalog-summary
+          aria-label={`${marketplace.name}, ${marketplace.provider}, ${pluginCount}`}
+        >
+          <span className={css.main}>
+            <strong className={css.name}>{marketplace.name}</strong>
+            <span className={css.meta}>{marketplace.provider}</span>
+          </span>
+          <span className={css.catalogCount}>{pluginCount}</span>
+          <span className={css.disclosure} aria-hidden="true">›</span>
+        </summary>
+        <div className={css.catalogBody}>
+          <input
+            className={`${css.input} ${css.catalogFilter}`}
+            data-action="filter-marketplace"
+            data-control-size="large"
+            type="search"
+            value={query}
+            aria-label={`${t('searchPlugins')}: ${marketplace.name}`}
+            placeholder={t('searchPlugins')}
+            onChange={(event: ChangeEvent<HTMLInputElement>) => { setQuery(event.currentTarget.value) }}
+          />
+          {visiblePlugins.length === 0 ? <p className={css.empty}>{t('noPluginMatches')}</p> : null}
+          <div className={css.catalogScroll} data-catalog-scroll>
+            <ul className={css.pluginList}>
+              {visiblePlugins.map(plugin => {
+                const action = `install:${marketplace.name}:${plugin}`
+                const feedback = mutationFeedback[action]
+                const installed = installations.some(installation => (
+                  installation.name === plugin && installation.marketplace === marketplace.name
+                ))
+                const installing = feedback?.status === 'pending'
+                return (
+                  <li className={css.pluginRow} data-catalog-plugin key={plugin}>
+                    <span className={css.pluginMain}>
+                      <span className={css.pluginName} title={plugin}>{plugin}</span>
+                      <OperationError action={action} feedback={feedback} t={t} />
+                    </span>
+                    <button
+                      className={css.button}
+                      data-action="install"
+                      data-install-state={installed ? 'installed' : installing ? 'installing' : feedback?.status === 'error' ? 'error' : 'available'}
+                      type="button"
+                      disabled={installing || installed}
+                      aria-busy={installing}
+                      onClick={() => { void onInstall(plugin, marketplace.name) }}
+                    >{t(installed ? 'installed' : installing ? 'installing' : 'install')}</button>
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
+        </div>
+      </details>
+    </li>
+  )
+}
+
 /** Four-section Agent Plugins management surface for DSH Web settings. */
 export function PluginBridgeContent({
   view,
-  busyAction,
+  mutationFeedback = {},
   marketplaceLocation,
   t,
   onMarketplaceLocationChange,
@@ -44,22 +145,25 @@ export function PluginBridgeContent({
   onInstall,
   onSetEnabled,
 }: PluginBridgeContentProps): ReactNode {
-  const busy = busyAction !== null
   const changeLocation = (event: ChangeEvent<HTMLInputElement>): void => {
     onMarketplaceLocationChange(event.currentTarget.value)
   }
+  const rescanFeedback = mutationFeedback.rescan
+  const addMarketplaceFeedback = mutationFeedback.addMarketplace
   return (
-    <div className={css.root} aria-busy={busy}>
+    <div className={css.root}>
       <header className={css.header}>
         <h2>{t('title')}</h2>
         <button
           className={css.button}
           data-action="rescan"
           type="button"
-          disabled={busy}
+          disabled={rescanFeedback?.status === 'pending'}
+          aria-busy={rescanFeedback?.status === 'pending'}
           onClick={() => { void onRescan() }}
-        >{t('rescan')}</button>
+        >{t(rescanFeedback?.status === 'pending' ? 'working' : 'rescan')}</button>
       </header>
+      <OperationError action="rescan" feedback={rescanFeedback} t={t} />
 
       <section className={css.section} data-section="installed">
         <Heading label={t('installed')} count={view.snapshot.installations.length} />
@@ -77,16 +181,29 @@ export function PluginBridgeContent({
                   {' · '}{String(installation.protectedCount)} {t('protected')}
                   {' · '}{String(installation.unsupportedCount)} {t('unsupported')}
                 </span>
+                {(installation.requiredHosts ?? []).includes('codex') ? (
+                  <p className={css.notice} data-notice="codex-host-required">
+                    {t('codexHostRequired')}
+                  </p>
+                ) : null}
                 <Diagnostics values={installation.diagnostics} />
+                <OperationError
+                  action={`setEnabled:${installation.name}`}
+                  feedback={mutationFeedback[`setEnabled:${installation.name}`]}
+                  t={t}
+                />
               </div>
               <div className={css.actions}>
                 <button
                   className={css.button}
                   data-action="set-enabled"
                   type="button"
-                  disabled={busy}
+                  disabled={mutationFeedback[`setEnabled:${installation.name}`]?.status === 'pending'}
+                  aria-busy={mutationFeedback[`setEnabled:${installation.name}`]?.status === 'pending'}
                   onClick={() => { void onSetEnabled(installation.name, !installation.enabled) }}
-                >{t(installation.enabled ? 'disable' : 'enable')}</button>
+                >{t(mutationFeedback[`setEnabled:${installation.name}`]?.status === 'pending'
+                  ? 'working'
+                  : installation.enabled ? 'disable' : 'enable')}</button>
               </div>
             </li>
           ))}
@@ -109,31 +226,23 @@ export function PluginBridgeContent({
             data-action="add-marketplace"
             data-primary="true"
             type="button"
-            disabled={busy || marketplaceLocation.trim().length === 0}
+            disabled={addMarketplaceFeedback?.status === 'pending' || marketplaceLocation.trim().length === 0}
+            aria-busy={addMarketplaceFeedback?.status === 'pending'}
             onClick={() => { void onAddMarketplace() }}
-          >{t('add')}</button>
+          >{t(addMarketplaceFeedback?.status === 'pending' ? 'working' : 'add')}</button>
         </div>
+        <OperationError action="addMarketplace" feedback={addMarketplaceFeedback} t={t} />
         {view.snapshot.marketplaces.length === 0 ? <p className={css.empty}>{t('configuredEmpty')}</p> : null}
         <ul className={css.list}>
           {view.snapshot.marketplaces.map(marketplace => (
-            <li className={css.row} key={marketplace.name}>
-              <div className={css.main}>
-                <strong className={css.name}>{marketplace.name}</strong>
-                <span className={css.meta}>{marketplace.provider}</span>
-              </div>
-              <div className={css.actions}>
-                {marketplace.plugins.map(plugin => (
-                  <button
-                    className={css.button}
-                    data-action="install"
-                    type="button"
-                    key={plugin}
-                    disabled={busy}
-                    onClick={() => { void onInstall(plugin, marketplace.name) }}
-                  >{t('install')} {plugin}</button>
-                ))}
-              </div>
-            </li>
+            <MarketplaceCatalog
+              key={marketplace.name}
+              marketplace={marketplace}
+              installations={view.snapshot.installations}
+              mutationFeedback={mutationFeedback}
+              t={t}
+              onInstall={onInstall}
+            />
           ))}
         </ul>
       </section>
@@ -151,14 +260,20 @@ export function PluginBridgeContent({
                   {marketplace.locator} · {marketplace.sourceType}
                   {marketplace.revision === undefined ? '' : ` · ${marketplace.revision}`}
                 </span>
+                <OperationError
+                  action={`importMarketplace:${marketplace.ref}`}
+                  feedback={mutationFeedback[`importMarketplace:${marketplace.ref}`]}
+                  t={t}
+                />
               </div>
               <button
                 className={css.button}
                 data-action="import-marketplace"
                 type="button"
-                disabled={busy}
+                disabled={mutationFeedback[`importMarketplace:${marketplace.ref}`]?.status === 'pending'}
+                aria-busy={mutationFeedback[`importMarketplace:${marketplace.ref}`]?.status === 'pending'}
                 onClick={() => { void onImportMarketplace(marketplace.ref) }}
-              >{t('import')}</button>
+              >{t(mutationFeedback[`importMarketplace:${marketplace.ref}`]?.status === 'pending' ? 'working' : 'import')}</button>
             </li>
           ))}
         </ul>
@@ -183,14 +298,20 @@ export function PluginBridgeContent({
                     plugin.enabled === undefined ? undefined : t(plugin.enabled ? 'foreignEnabled' : 'foreignDisabled'),
                   ].filter((value): value is string => value !== undefined).join(' · ')}
                 </span>
+                <OperationError
+                  action={`importLocal:${plugin.ref}`}
+                  feedback={mutationFeedback[`importLocal:${plugin.ref}`]}
+                  t={t}
+                />
               </div>
               <button
                 className={css.button}
                 data-action="import-local"
                 type="button"
-                disabled={busy}
+                disabled={mutationFeedback[`importLocal:${plugin.ref}`]?.status === 'pending'}
+                aria-busy={mutationFeedback[`importLocal:${plugin.ref}`]?.status === 'pending'}
                 onClick={() => { void onImportLocal(plugin.ref) }}
-              >{t('import')}</button>
+              >{t(mutationFeedback[`importLocal:${plugin.ref}`]?.status === 'pending' ? 'working' : 'import')}</button>
             </li>
           ))}
         </ul>

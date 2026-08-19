@@ -5,6 +5,7 @@ import type {
 } from './types.js'
 import type { Context } from '@deepseek-ai/cordis'
 import {
+  parseGitRepositorySource,
   parseMarketplaceRelativeDirectory,
   parsePluginEntry,
   requireIdentifier,
@@ -48,57 +49,12 @@ function parseCodexSource(value: unknown, field: string): MarketplacePluginSourc
     throw new TypeError(`${field}: npm marketplace sources are documented but not supported by this bridge`)
   }
   if (source.source === 'url' || source.source === 'git-subdir') {
-    return parseCodexGitSource(source, field)
+    return parseGitRepositorySource(source, field)
   }
   const unsupportedKey = Object.keys(source).find(key => key !== 'source' && key !== 'path')
   if (unsupportedKey !== undefined) throw new TypeError(`${field}.${unsupportedKey} is not supported`)
   if (source.source !== 'local') throw new TypeError(`${field}.source must be "local"`)
   return parseMarketplaceRelativeDirectory(source.path, `${field}.path`)
-}
-
-function parseCodexGitSource(
-  source: Record<string, unknown>,
-  field: string,
-): MarketplacePluginSource {
-  const hasSubdirectory = source.source === 'git-subdir'
-  const allowed = new Set(['source', 'url', 'ref', 'sha', ...(hasSubdirectory ? ['path'] : [])])
-  const unsupportedKey = Object.keys(source).find(key => !allowed.has(key))
-  if (unsupportedKey !== undefined) throw new TypeError(`${field}.${unsupportedKey} is not supported`)
-  if (typeof source.url !== 'string' || !isSafeGitUrl(source.url)) {
-    throw new TypeError(`${field}.url must be an HTTPS Git URL without credentials or a fragment`)
-  }
-  const result: {
-    kind: 'git-repository'
-    url: string
-    subdirectory?: string
-    ref?: string
-    sha?: string
-  } = { kind: 'git-repository', url: source.url }
-  if (hasSubdirectory) {
-    result.subdirectory = parseMarketplaceRelativeDirectory(source.path, `${field}.path`).path
-  }
-  if (source.ref !== undefined) result.ref = nonEmptyString(source.ref, `${field}.ref`)
-  if (source.sha !== undefined) result.sha = nonEmptyString(source.sha, `${field}.sha`)
-  return result
-}
-
-function isSafeGitUrl(value: string): boolean {
-  try {
-    const parsed = new URL(value)
-    return parsed.protocol === 'https:'
-      && parsed.username.length === 0
-      && parsed.password.length === 0
-      && parsed.hash.length === 0
-  } catch {
-    return false
-  }
-}
-
-function nonEmptyString(value: unknown, field: string): string {
-  if (typeof value !== 'string' || value.trim().length === 0) {
-    throw new TypeError(`${field} must be a non-empty string`)
-  }
-  return value
 }
 
 export const name = 'plugin-bridge-marketplace-codex'

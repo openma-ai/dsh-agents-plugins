@@ -73,7 +73,7 @@ test('a failed initial load exposes a localized retry and recovers', async () =>
   assert.equal(renderer!.root.findAll(node => node.type === 'section').length, 4)
 })
 
-test('a mutation failure keeps the current view and hides transport details', async () => {
+test('a mutation failure stays beside its action and hides transport details', async () => {
   const ui = await import('../src/client/PluginBridgeSettingsTab.js').catch(() => undefined)
   assert.equal(typeof ui?.PluginBridgeSettingsTab, 'function')
   const view = {
@@ -102,7 +102,7 @@ test('a mutation failure keeps the current view and hides transport details', as
     renderer = TestRenderer.create(createElement(ui?.PluginBridgeSettingsTab as never, props))
   })
   await act(async () => { renderer!.root.findByProps({ 'data-action': 'set-enabled' }).props.onClick() })
-  const alert = renderer!.root.findByProps({ role: 'alert' }).children.join('')
+  const alert = renderer!.root.findByProps({ 'data-operation-error': 'setEnabled:demo' }).children.join('')
   assert.equal(alert, 'mutationError')
   assert.doesNotMatch(alert, /TOKEN|must-not-render/u)
   assert.equal(renderer!.root.findAll(node => node.type === 'section').length, 4)
@@ -135,6 +135,194 @@ test('a failed marketplace add preserves the entered location', async () => {
     await renderer!.root.findByProps({ 'data-action': 'add-marketplace' }).props.onClick()
   })
   assert.equal(renderer!.root.findByType('input').props.value, '/catalog')
+})
+
+test('marketplace install shows progress and becomes visibly installed', async () => {
+  const ui = await import('../src/client/PluginBridgeSettingsTab.js')
+  const initial = {
+    snapshot: {
+      installations: [],
+      marketplaces: [{ name: 'team', provider: 'claude-code-marketplace', plugins: ['demo'] }],
+    },
+    marketplaces: { candidates: [], diagnostics: [] },
+    local: { candidates: [], diagnostics: [] },
+  }
+  const installed = {
+    ...initial,
+    snapshot: {
+      ...initial.snapshot,
+      installations: [{
+        name: 'demo', marketplace: 'team', format: 'claude-code-legacy', enabled: true,
+        rowCount: 1, protectedCount: 0, unsupportedCount: 0, diagnostics: [],
+      }],
+    },
+  }
+  let resolveInstall: ((value: typeof installed) => void) | undefined
+  let renderer: TestRenderer.ReactTestRenderer
+  await act(async () => {
+    renderer = TestRenderer.create(createElement(ui.PluginBridgeSettingsTab as never, {
+      t: (key: string) => key,
+      load: async () => initial,
+      rescan: async () => initial,
+      addMarketplace: async () => initial,
+      importMarketplace: async () => initial,
+      importLocal: async () => initial,
+      install: () => new Promise<typeof installed>((resolve) => { resolveInstall = resolve }),
+      setEnabled: async () => initial,
+    }))
+  })
+
+  const installButton = (): TestRenderer.ReactTestInstance => renderer!.root.findByProps({ 'data-action': 'install' })
+  await act(async () => { installButton().props.onClick() })
+  assert.equal(installButton().children.join(''), 'installing')
+  assert.equal(installButton().props['aria-busy'], true)
+
+  await act(async () => { resolveInstall?.(installed) })
+  assert.equal(installButton().children.join(''), 'installed')
+  assert.equal(installButton().props.disabled, true)
+  assert.equal(installButton().props['data-install-state'], 'installed')
+})
+
+test('an install in progress leaves unrelated plugin actions usable', async () => {
+  const ui = await import('../src/client/PluginBridgeSettingsTab.js')
+  const view = {
+    snapshot: {
+      installations: [{
+        name: 'existing', marketplace: 'team', format: 'claude-code-legacy', enabled: true,
+        rowCount: 1, protectedCount: 0, unsupportedCount: 0, diagnostics: [],
+      }],
+      marketplaces: [{ name: 'team', provider: 'claude-code-marketplace', plugins: ['demo'] }],
+    },
+    marketplaces: { candidates: [], diagnostics: [] },
+    local: { candidates: [], diagnostics: [] },
+  }
+  let resolveInstall: ((value: typeof view) => void) | undefined
+  let renderer: TestRenderer.ReactTestRenderer
+  await act(async () => {
+    renderer = TestRenderer.create(createElement(ui.PluginBridgeSettingsTab as never, {
+      t: (key: string) => key,
+      load: async () => view,
+      rescan: async () => view,
+      addMarketplace: async () => view,
+      importMarketplace: async () => view,
+      importLocal: async () => view,
+      install: () => new Promise<typeof view>((resolve) => { resolveInstall = resolve }),
+      setEnabled: async () => view,
+    }))
+  })
+
+  await act(async () => { renderer!.root.findByProps({ 'data-action': 'install' }).props.onClick() })
+  assert.equal(renderer!.root.findByProps({ 'data-action': 'install' }).props.disabled, true)
+  assert.equal(renderer!.root.findByProps({ 'data-action': 'rescan' }).props.disabled, false)
+  assert.equal(renderer!.root.findByProps({ 'data-action': 'set-enabled' }).props.disabled, false)
+  await act(async () => { resolveInstall?.(view) })
+})
+
+test('a failed install stays on its marketplace row with a safe actionable reason', async () => {
+  const ui = await import('../src/client/PluginBridgeSettingsTab.js')
+  const view = {
+    snapshot: {
+      installations: [],
+      marketplaces: [{ name: 'team', provider: 'claude-code-marketplace', plugins: ['demo'] }],
+    },
+    marketplaces: { candidates: [], diagnostics: [] },
+    local: { candidates: [], diagnostics: [] },
+  }
+  let renderer: TestRenderer.ReactTestRenderer
+  await act(async () => {
+    renderer = TestRenderer.create(createElement(ui.PluginBridgeSettingsTab as never, {
+      t: (key: string) => key,
+      load: async () => view,
+      rescan: async () => view,
+      addMarketplace: async () => view,
+      importMarketplace: async () => view,
+      importLocal: async () => view,
+      install: async () => { throw new Error('git clone timed out: TOKEN=must-not-render') },
+      setEnabled: async () => view,
+    }))
+  })
+
+  await act(async () => { renderer!.root.findByProps({ 'data-action': 'install' }).props.onClick() })
+  const rowError = renderer!.root.findByProps({ 'data-operation-error': 'install:team:demo' })
+  assert.equal(rowError.children.join(''), 'installErrorTimeout')
+  assert.doesNotMatch(JSON.stringify(renderer!.toJSON()), /TOKEN|must-not-render/u)
+  assert.equal(renderer!.root.findByProps({ 'data-action': 'install' }).props['data-install-state'], 'error')
+  assert.equal(renderer!.root.findByProps({ 'data-action': 'install' }).props.disabled, false)
+})
+
+test('install failures distinguish source, compatibility, manifest, duplicate, and unknown causes', async () => {
+  const ui = await import('../src/client/PluginBridgeSettingsTab.js')
+  const view = {
+    snapshot: {
+      installations: [],
+      marketplaces: [{ name: 'team', provider: 'claude-code-marketplace', plugins: ['demo'] }],
+    },
+    marketplaces: { candidates: [], diagnostics: [] },
+    local: { candidates: [], diagnostics: [] },
+  }
+  const cases = [
+    ['Command failed: git clone https://example.invalid/demo.git', 'installErrorSource'],
+    ['unsupported package format at demo', 'installErrorUnsupported'],
+    ['plugin manifest is invalid', 'installErrorInvalid'],
+    ['plugin "demo" is already installed', 'installErrorInstalled'],
+    ['opaque host failure', 'installErrorGeneric'],
+  ] as const
+
+  for (const [message, expected] of cases) {
+    let renderer: TestRenderer.ReactTestRenderer
+    await act(async () => {
+      renderer = TestRenderer.create(createElement(ui.PluginBridgeSettingsTab as never, {
+        t: (key: string) => key,
+        load: async () => view,
+        rescan: async () => view,
+        addMarketplace: async () => view,
+        importMarketplace: async () => view,
+        importLocal: async () => view,
+        install: async () => { throw new Error(message) },
+        setEnabled: async () => view,
+      }))
+    })
+    await act(async () => { renderer!.root.findByProps({ 'data-action': 'install' }).props.onClick() })
+    assert.equal(
+      renderer!.root.findByProps({ 'data-operation-error': 'install:team:demo' }).children.join(''),
+      expected,
+    )
+    renderer!.unmount()
+  }
+})
+
+test('a Host-classified activation failure explains that DSH capability mounting failed', async () => {
+  const ui = await import('../src/client/PluginBridgeSettingsTab.js')
+  const view = {
+    snapshot: {
+      installations: [],
+      marketplaces: [{ name: 'team', provider: 'claude-code-marketplace', plugins: ['demo'] }],
+    },
+    marketplaces: { candidates: [], diagnostics: [] },
+    local: { candidates: [], diagnostics: [] },
+  }
+  let renderer: TestRenderer.ReactTestRenderer
+  await act(async () => {
+    renderer = TestRenderer.create(createElement(ui.PluginBridgeSettingsTab as never, {
+      t: (key: string) => key,
+      load: async () => view,
+      rescan: async () => view,
+      addMarketplace: async () => view,
+      importMarketplace: async () => view,
+      importLocal: async () => view,
+      install: async () => {
+        throw Object.assign(new Error('private loader detail'), { reason: 'activation' })
+      },
+      setEnabled: async () => view,
+    }))
+  })
+
+  await act(async () => { renderer!.root.findByProps({ 'data-action': 'install' }).props.onClick() })
+  assert.equal(
+    renderer!.root.findByProps({ 'data-operation-error': 'install:team:demo' }).children.join(''),
+    'installErrorActivation',
+  )
+  assert.doesNotMatch(JSON.stringify(renderer!.toJSON()), /private loader detail/u)
 })
 
 test('unmount ignores a late load result', async () => {

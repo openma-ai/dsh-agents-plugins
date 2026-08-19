@@ -3,13 +3,16 @@
   "version": "0.1.0",
   "description": "Portable Agent Plugins, Codex, Claude Code, and Pi plugin bridge for dsh",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/openma-ai/dsh-agents-plugins.git"
+    "url": "git+https://github.com/openma-ai/dsh-agents-plugins-bridge.git"
   },
-  "homepage": "https://github.com/openma-ai/dsh-agents-plugins#readme",
+  "homepage": "https://github.com/openma-ai/dsh-agents-plugins-bridge#readme",
   "bugs": {
-    "url": "https://github.com/openma-ai/dsh-agents-plugins/issues"
+    "url": "https://github.com/openma-ai/dsh-agents-plugins-bridge/issues"
   },
   "type": "module",
   "workspaces": [
@@ -33,6 +36,42 @@
     "./ui-host": {
       "types": "./lib/ui-host.d.ts",
       "default": "./lib/ui-host.js"
+    },
+    "./ui-auto": {
+      "types": "./lib/ui-auto.d.ts",
+      "default": "./lib/ui-auto.js"
+    },
+    "./typert": {
+      "types": "./lib/typert.d.ts",
+      "default": "./lib/typert.js"
+    },
+    "./remote": {
+      "types": "./lib/remote.d.ts",
+      "default": "./lib/remote.js"
+    },
+    "./prompt-commands": {
+      "types": "./lib/prompt-commands.d.ts",
+      "default": "./lib/prompt-commands.js"
+    },
+    "./codex-host-relay": {
+      "types": "./lib/codex-host-relay.d.ts",
+      "default": "./lib/codex-host-relay.js"
+    },
+    "./hooks-claude-code": {
+      "types": "./lib/hooks-claude-code.d.ts",
+      "default": "./lib/hooks-claude-code.js"
+    },
+    "./hooks-codex": {
+      "types": "./lib/hooks-codex.d.ts",
+      "default": "./lib/hooks-codex.js"
+    },
+    "./pi-skills": {
+      "types": "./lib/pi-skills.d.ts",
+      "default": "./lib/pi-skills.js"
+    },
+    "./pi-extension-host": {
+      "types": "./lib/pi-extension-host.d.ts",
+      "default": "./lib/pi-extension-host.js"
     },
     "./providers/agent-plugins-v1": {
       "types": "./lib/providers/agent-plugins-v1.d.ts",
@@ -98,9 +137,61 @@
       "types": "./lib/adapters/dsh-hooks.d.ts",
       "default": "./lib/adapters/dsh-hooks.js"
     },
+    "./adapters/dsh-prompt-commands": {
+      "types": "./lib/adapters/dsh-prompt-commands.d.ts",
+      "default": "./lib/adapters/dsh-prompt-commands.js"
+    },
+    "./adapters/dsh-pi-skills": {
+      "types": "./lib/adapters/dsh-pi-skills.d.ts",
+      "default": "./lib/adapters/dsh-pi-skills.js"
+    },
+    "./adapters/dsh-pi-extensions": {
+      "types": "./lib/adapters/dsh-pi-extensions.d.ts",
+      "default": "./lib/adapters/dsh-pi-extensions.js"
+    },
+    "./adapters/dsh-themes": {
+      "types": "./lib/adapters/dsh-themes.d.ts",
+      "default": "./lib/adapters/dsh-themes.js"
+    },
+    "./adapters/dsh-lsp": {
+      "types": "./lib/adapters/dsh-lsp.d.ts",
+      "default": "./lib/adapters/dsh-lsp.js"
+    },
+    "./adapters/dsh-codex-apps": {
+      "types": "./lib/adapters/dsh-codex-apps.d.ts",
+      "default": "./lib/adapters/dsh-codex-apps.js"
+    },
+    "./adapters/dsh-claude-agents": {
+      "types": "./lib/adapters/dsh-claude-agents.d.ts",
+      "default": "./lib/adapters/dsh-claude-agents.js"
+    },
+    "./claude-agents": {
+      "types": "./lib/claude-agents.d.ts",
+      "default": "./lib/claude-agents.js"
+    },
+    "./adapters/dsh-output-styles": {
+      "types": "./lib/adapters/dsh-output-styles.d.ts",
+      "default": "./lib/adapters/dsh-output-styles.js"
+    },
+    "./adapters/dsh-output-style-host": {
+      "types": "./lib/adapters/dsh-output-style-host.d.ts",
+      "default": "./lib/adapters/dsh-output-style-host.js"
+    },
+    "./adapters/dsh-claude-monitors": {
+      "types": "./lib/adapters/dsh-claude-monitors.d.ts",
+      "default": "./lib/adapters/dsh-claude-monitors.js"
+    },
+    "./claude-monitors": {
+      "types": "./lib/claude-monitors.d.ts",
+      "default": "./lib/claude-monitors.js"
+    },
     "./policies/hook-user-approval": {
       "types": "./lib/policies/hook-user-approval.d.ts",
       "default": "./lib/policies/hook-user-approval.js"
+    },
+    "./policies/codex-app-tool-approval": {
+      "types": "./lib/policies/codex-app-tool-approval.d.ts",
+      "default": "./lib/policies/codex-app-tool-approval.js"
     },
     "./cordis.patch.yml": "./cordis.patch.yml",
     "./package.json": "./package.json"
@@ -119,28 +210,59 @@
   "scripts": {
     "build:core": "tsc -p tsconfig.build.json",
     "build:ui": "npm run build --workspace @openma/dsh-agents-plugins-bridge-ui",
-    "build": "npm run build:core && npm run build:ui",
+    "build:workspaces": "npm run build --workspaces --if-present",
+    "build": "npm run build:core && npm run build:workspaces",
     "prepare": "npm run build",
     "test:core": "tsx --test tests/**/*.spec.ts",
     "test": "npm run test:core && npm run test --workspaces --if-present",
     "typecheck:core": "tsc -p tsconfig.json --noEmit",
-    "typecheck": "npm run typecheck:core && npm run typecheck --workspaces --if-present"
+    "typecheck": "npm run typecheck:core && npm run typecheck --workspaces --if-present",
+    "release:publish": "node scripts/publish.mjs"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/cordis-plugin-loader": ">=1.0.2 <2",
+    "@deepseek-ai/dsh-agent": ">=0.1.0-rc.6 <1",
     "@deepseek-ai/dsh-commands": ">=0.0.1-rc.1 <1",
+    "@deepseek-ai/dsh-host-webserver": ">=0.1.0-rc.6 <1",
+    "@deepseek-ai/dsh-llm": ">=0.1.0-rc.6 <1",
+    "@deepseek-ai/dsh-mcp-client": ">=0.1.0-rc.6 <1",
+    "@deepseek-ai/dsh-scope": ">=0.1.0-rc.6 <1",
+    "@deepseek-ai/dsh-session": ">=0.1.0-rc.6 <1",
+    "@deepseek-ai/dsh-skill": ">=0.1.0-rc.6 <1",
+    "@deepseek-ai/dsh-subagent": ">=0.1.0-rc.7 <1",
+    "@deepseek-ai/dsh-subprocess": ">=0.1.0-rc.7 <1",
+    "@deepseek-ai/dsh-system-prompt": ">=0.1.0-rc.7 <1",
+    "@deepseek-ai/dsh-tools": ">=0.1.0-rc.6 <1",
     "@deepseek-ai/dsh-typert-protocol": ">=0.1.0-rc.6 <1"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/dsh-host-webserver": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/cordis-plugin-loader": "^1.0.2",
+    "@deepseek-ai/dsh-agent": "^0.1.0-rc.7",
     "@deepseek-ai/dsh-commands": "^0.1.0-rc.7",
+    "@deepseek-ai/dsh-host-webserver": "^0.1.0-rc.7",
+    "@deepseek-ai/dsh-llm": "^0.1.0-rc.7",
+    "@deepseek-ai/dsh-mcp-client": "^0.1.0-rc.7",
+    "@deepseek-ai/dsh-scope": "^0.1.0-rc.7",
+    "@deepseek-ai/dsh-session": "^0.1.0-rc.7",
+    "@deepseek-ai/dsh-skill": "^0.1.0-rc.7",
+    "@deepseek-ai/dsh-subagent": "^0.1.0-rc.7",
+    "@deepseek-ai/dsh-subprocess": "^0.1.0-rc.7",
+    "@deepseek-ai/dsh-system-prompt": "^0.1.0-rc.7",
+    "@deepseek-ai/dsh-tools": "^0.1.0-rc.7",
     "@deepseek-ai/dsh-typert-protocol": "^0.1.0-rc.7",
     "@types/node": "^24.0.0",
     "tsx": "^4.20.0",
     "typescript": "^5.9.0"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22.19.0"
   },
   "keywords": [
     "dsh",
@@ -151,7 +273,14 @@
     "plugin-bridge"
   ],
   "dependencies": {
+    "@deepseek-ai/dsh-hooks-claude-code": "^0.1.0-rc.7",
+    "@deepseek-ai/dsh-hooks-codex": "^0.1.0-rc.7",
+    "@earendil-works/pi-coding-agent": "0.84.2",
+    "@openma/dsh-agents-plugins-bridge-theme": "0.1.0",
     "@openma/dsh-agents-plugins-bridge-ui": "0.1.0",
-    "smol-toml": "^1.8.0"
+    "minimatch": "^10.0.3",
+    "smol-toml": "^1.8.0",
+    "yaml": "^2.8.1",
+    "zod": "^4.4.3"
   }
 }

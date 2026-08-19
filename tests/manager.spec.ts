@@ -95,7 +95,7 @@ test('a marketplace install is copied, normalized, materialized, and durable', a
   assert.deepEqual(installed.unsupported, [])
   assert.equal(installed.rows.length, 1)
   assert.equal(loader.rows.get(installed.rows[0]!.id)?.name, '@deepseek-ai/dsh-skill-filesystem')
-  assert.match(String(installed.rows[0]!.config?.customSkillDirs), /state\/plugins\/local-codex\/demo/)
+  assert.match(String(installed.rows[0]!.config?.bundledSkillDir), /state\/plugins\/local-codex\/demo/)
 
   const state = JSON.parse(await readFile(join(storage, 'state.json'), 'utf8')) as {
     installations: { name: string; enabled: boolean }[]
@@ -159,6 +159,48 @@ test('startup restores each persisted component row without re-detecting the pac
   assert.deepEqual([...restoredLoader.rows], installed.rows.map(row => [row.id, row]))
 })
 
+test('startup migrates bridge skill roots out of the workspace filesystem sandbox', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'plugin-bridge-skill-root-migration-'))
+  const storage = join(root, 'state')
+  const skillRoot = join(storage, 'plugins', 'imports', 'demo', 'skills')
+  await mkdir(storage, { recursive: true })
+  await writeFile(join(storage, 'state.json'), JSON.stringify({
+    version: 1,
+    marketplaces: [],
+    installations: [{
+      name: 'demo', marketplace: 'import:codex-local-cache', format: 'codex-legacy',
+      root: join(storage, 'plugins', 'imports', 'demo'), enabled: true,
+      rows: [{
+        id: 'plugin-bridge-demo-skill-skills',
+        name: '@deepseek-ai/dsh-skill-filesystem',
+        config: {
+          providerName: 'plugin-bridge-demo-skills',
+          includeDefaultRoots: false,
+          customSkillDirs: [skillRoot],
+        },
+      }],
+      activations: [],
+      unsupported: [],
+    }],
+    approvals: [],
+  }))
+  const loader = new MemoryLoader()
+  const manager = new PluginBridgeManager(new PluginBridgeKernel(new Context()), loader, storage)
+
+  await manager.start()
+
+  assert.deepEqual(loader.rows.get('plugin-bridge-demo-skill-skills')?.config, {
+    providerName: 'plugin-bridge-demo-skills',
+    includeDefaultRoots: false,
+    bundledSkillDir: skillRoot,
+  })
+  const persisted = JSON.parse(await readFile(join(storage, 'state.json'), 'utf8')) as {
+    installations: Array<{ rows: DshPluginRow[] }>
+  }
+  assert.equal(persisted.installations[0]?.rows[0]?.config?.bundledSkillDir, skillRoot)
+  assert.equal(persisted.installations[0]?.rows[0]?.config?.customSkillDirs, undefined)
+})
+
 test('disable and uninstall remove only rows owned by that installation', async () => {
   const { kernel, loader, storage, marketplace } = await fixture()
   const manager = new PluginBridgeManager(kernel, loader, storage)
@@ -212,7 +254,14 @@ test('failed Loader activation rolls back earlier component rows and state', asy
   const manager = new PluginBridgeManager(kernel, loader, storage)
   await manager.addMarketplace(marketplace)
 
-  await assert.rejects(() => manager.install('demo@local-codex'), /activation rejected/)
+  await assert.rejects(
+    () => manager.install('demo@local-codex'),
+    (error: unknown) => (
+      error instanceof Error
+      && error.message === 'plugin activation failed: activation rejected'
+      && (error as Error & { phase?: string }).phase === 'activation'
+    ),
+  )
   assert.deepEqual(created, [])
   assert.deepEqual(manager.listInstallations(), [])
 })
@@ -306,5 +355,5 @@ test('a canonical Codex marketplace installs an HTTPS git-subdir source through 
 
   assert.deepEqual(calls, ['https://github.com/example/plugins.git:main:'])
   assert.equal(installed.rows.length, 1)
-  assert.match(String(installed.rows[0]?.config?.customSkillDirs), /state\/plugins\/codex-remote\/nested\/skills/)
+  assert.match(String(installed.rows[0]?.config?.bundledSkillDir), /state\/plugins\/codex-remote\/nested\/skills/)
 })

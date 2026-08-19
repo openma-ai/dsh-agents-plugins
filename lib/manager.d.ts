@@ -1,4 +1,4 @@
-import type { ActivationInspection, ActivationRequirement, DshPluginRow, InstalledPluginCandidate, MarketplaceRegistrationCandidate, PackageComponent, PluginBridgeKernel } from './kernel.js';
+import type { ActivationInspection, ActivationRequirement, DshPluginRow, InstalledPluginCandidate, MarketplaceRegistrationCandidate, PackageComponent, PluginBridgeKernel, RuntimeRequirement } from './kernel.js';
 import type { MarketplacePluginEntry } from './marketplaces/types.js';
 /** Minimal Loader face used to mount each materialized row independently. */
 export interface BridgeLoader {
@@ -21,6 +21,12 @@ export interface GitRepositoryAcquirer {
 export interface PluginBridgeManagerOptions {
     readonly git?: GitRepositoryAcquirer;
 }
+export type PluginInstallPhase = 'activation';
+/** Installation failure annotated with the transaction phase that failed. */
+export declare class PluginInstallOperationError extends Error {
+    readonly phase: PluginInstallPhase;
+    constructor(phase: PluginInstallPhase, cause: unknown);
+}
 /** Durable marketplace registration. */
 export interface RegisteredMarketplace {
     readonly name: string;
@@ -37,6 +43,7 @@ export interface InstalledPlugin {
     readonly root: string;
     readonly rows: readonly DshPluginRow[];
     readonly activations: readonly ActivationRequirement[];
+    readonly requirements: readonly RuntimeRequirement[];
     readonly unsupported: readonly PackageComponent[];
     readonly diagnostics?: readonly string[];
     readonly enabled: boolean;
@@ -130,6 +137,8 @@ export declare class PluginBridgeManager {
     /** Refresh digests, revoke stale approvals, and quiesce rows whose trust changed. */
     private refreshInstallationActivations;
     private rowsAllowedByPolicyWithApprovals;
+    /** Cordis Loader owns and normalizes the options object it receives. */
+    private createRow;
     private acquireSource;
     private removeRows;
     private statePath;

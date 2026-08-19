@@ -1,9 +1,17 @@
 import type {
   PluginBridgeRemoteApi,
   PluginBridgeRemoteResult,
+  PluginBridgeInstallFailureReason,
   PluginBridgeSnapshot,
   PluginBridgeView,
 } from '../types.ts'
+
+export class PluginBridgeInstallError extends Error {
+  constructor(readonly reason: PluginBridgeInstallFailureReason) {
+    super(`Plugin install failed: ${reason}`)
+    this.name = 'PluginBridgeInstallError'
+  }
+}
 
 function unwrap<T>(endpoint: string, result: PluginBridgeRemoteResult<T>): T {
   if (result.ok) return result.value

@@ -51,6 +51,13 @@ test('snapshot projects durable state without exposing row configuration or file
         config: { env: { TOKEN: 'must-not-cross-the-wire' } },
       }],
       activations: [{ policy: 'hook-user-approval', rowId: 'deploy-hook', digest: 'a'.repeat(64) }],
+      requirements: [{
+        kind: 'foreign-host' as const,
+        host: 'codex',
+        capability: 'registered-app-connection',
+        componentPath: '.app.json',
+        metadata: { connectionId: 'connector_must-not-cross-the-wire' },
+      }],
       unsupported: [{ type: 'app', path: '.app.json' }],
       diagnostics: ['cannot inspect /private/plugins/deploy: TOKEN=must-not-cross-the-wire'],
     }],
@@ -72,11 +79,12 @@ test('snapshot projects durable state without exposing row configuration or file
       enabled: true,
       rowCount: 1,
       protectedCount: 1,
+      requiredHosts: ['codex'],
       unsupportedCount: 1,
       diagnostics: ['1 diagnostic; details are available in Host logs'],
     }],
   })
-  assert.doesNotMatch(JSON.stringify(snapshot), /private|TOKEN|must-not-cross-the-wire/u)
+  assert.doesNotMatch(JSON.stringify(snapshot), /private|TOKEN|connector_|must-not-cross-the-wire/u)
 })
 
 test('discovery reads preserve opaque refs while hiding foreign filesystem locations', async () => {
@@ -183,4 +191,44 @@ test('mutations are serialized and keep structured UI arguments at the Host boun
     'disable:deploy',
     'enable:deploy',
   ])
+})
+
+test('a failed install returns a safe reason while recording its full cause only in Host logs', async () => {
+  const warnings: string[] = []
+  const ctx = new Context()
+  ctx.logger.warn = (message: unknown) => { warnings.push(String(message)) }
+  ctx.provide('pluginBridgeRuntime', {
+    listMarketplaces: () => [],
+    listInstallations: () => [],
+    install: async () => { throw new Error('git clone failed: TOKEN=host-log-only') },
+  })
+  const gateway = new AgentPluginsGateway(ctx)
+
+  assert.deepEqual(await gateway.installPlugin('demo', 'team'), {
+    status: 'failed',
+    reason: 'source',
+  })
+  assert.deepEqual(warnings, [
+    'agentPluginsBridge installPlugin demo@team failed: git clone failed: TOKEN=host-log-only',
+  ])
+})
+
+test('an activation-phase install failure is preserved as a safe Host result', async () => {
+  const ctx = new Context()
+  ctx.logger.warn = () => {}
+  ctx.provide('pluginBridgeRuntime', {
+    listMarketplaces: () => [],
+    listInstallations: () => [],
+    install: async () => {
+      throw Object.assign(new Error('plugin activation failed: private loader detail'), {
+        phase: 'activation',
+      })
+    },
+  })
+  const gateway = new AgentPluginsGateway(ctx)
+
+  assert.deepEqual(await gateway.installPlugin('demo', 'team'), {
+    status: 'failed',
+    reason: 'activation',
+  })
 })

@@ -16,6 +16,7 @@ export interface AgentPluginsInstallationView {
   readonly enabled: boolean
   readonly rowCount: number
   readonly protectedCount: number
+  readonly requiredHosts: readonly string[]
   readonly unsupportedCount: number
   readonly diagnostics: readonly string[]
 }
@@ -25,6 +26,19 @@ export interface AgentPluginsSnapshot {
   readonly marketplaces: readonly AgentPluginsMarketplaceView[]
   readonly installations: readonly AgentPluginsInstallationView[]
 }
+
+export type AgentPluginsInstallFailureReason =
+  | 'timeout'
+  | 'source'
+  | 'unsupported'
+  | 'invalid'
+  | 'activation'
+  | 'already-installed'
+  | 'unknown'
+
+export type AgentPluginsInstallResult =
+  | { readonly status: 'installed'; readonly snapshot: AgentPluginsSnapshot }
+  | { readonly status: 'failed'; readonly reason: AgentPluginsInstallFailureReason }
 
 /** One foreign-agent plugin found locally but not yet imported. */
 export interface AgentPluginsLocalCandidateView {
@@ -76,6 +90,28 @@ function projectDiscoveryDiagnostics(diagnostics: readonly string[]): readonly s
   return [...counts].map(([source, count]) => `${source}: ${diagnosticSummary(count)}`)
 }
 
+function projectRequiredHosts(
+  requirements: readonly { readonly kind: string; readonly host?: string }[],
+): readonly string[] {
+  return [...new Set(requirements
+    .filter(requirement => requirement.kind === 'foreign-host' && requirement.host !== undefined)
+    .map(requirement => requirement.host as string))].sort()
+}
+
+function classifyInstallFailure(error: unknown): AgentPluginsInstallFailureReason {
+  if (typeof error === 'object' && error !== null && 'phase' in error
+    && (error as { readonly phase?: unknown }).phase === 'activation') return 'activation'
+  const message = error instanceof Error ? error.message : ''
+  if (/timed?\s*out|timeout/iu.test(message)) return 'timeout'
+  if (/already installed/iu.test(message)) return 'already-installed'
+  if (/unsupported package format|has no components supported|not supported/iu.test(message)) return 'unsupported'
+  if (/invalid (?:plugin )?manifest|manifest (?:is )?invalid|schema|parse|symlink|subdirectory|not a directory/iu.test(message)) {
+    return 'invalid'
+  }
+  if (/\bgit\b|clone|checkout|fetch|download|network|ECONN|ENOTFOUND|HTTP/iu.test(message)) return 'source'
+  return 'unknown'
+}
+
 /** Host gateway used by the Agent Plugins settings tab. */
 export class AgentPluginsGateway extends TypertRemoteService {
   static inject = ['pluginBridgeRuntime']
@@ -86,8 +122,16 @@ export class AgentPluginsGateway extends TypertRemoteService {
     super(ctx, 'agentPluginsBridge')
   }
 
-  private serializeMutation<T>(mutation: () => Promise<T>): Promise<T> {
-    const result = this.mutationTail.then(mutation)
+  private serializeMutation<T>(label: string, mutation: () => Promise<T>): Promise<T> {
+    const result = this.mutationTail.then(async () => {
+      try {
+        return await mutation()
+      } catch (error: unknown) {
+        const detail = error instanceof Error ? error.message : String(error)
+        this.ctx.logger.warn(`agentPluginsBridge ${label} failed: ${detail}`)
+        throw error
+      }
+    })
     this.mutationTail = result.then(() => undefined, () => undefined)
     return result
   }
@@ -108,6 +152,7 @@ export class AgentPluginsGateway extends TypertRemoteService {
         enabled: installation.enabled,
         rowCount: installation.rows.length,
         protectedCount: installation.activations.length,
+        requiredHosts: projectRequiredHosts(installation.requirements ?? []),
         unsupportedCount: installation.unsupported.length,
         diagnostics: projectInstallationDiagnostics(installation.diagnostics ?? []),
       })),
@@ -152,7 +197,7 @@ export class AgentPluginsGateway extends TypertRemoteService {
   /** Add one marketplace location and return the updated durable view. */
   @Remote('addMarketplace')
   async addMarketplace(location: string): Promise<AgentPluginsSnapshot> {
-    return this.serializeMutation(async () => {
+    return this.serializeMutation(`addMarketplace ${location}`, async () => {
       await this.ctx.pluginBridgeRuntime.addMarketplace(location)
       return this.snapshot()
     })
@@ -161,7 +206,7 @@ export class AgentPluginsGateway extends TypertRemoteService {
   /** Import one discovered foreign marketplace by its opaque ref. */
   @Remote('importMarketplace')
   async importMarketplace(ref: string): Promise<AgentPluginsSnapshot> {
-    return this.serializeMutation(async () => {
+    return this.serializeMutation(`importMarketplace ${ref}`, async () => {
       await this.ctx.pluginBridgeRuntime.importRegisteredMarketplace(ref)
       return this.snapshot()
     })
@@ -170,7 +215,7 @@ export class AgentPluginsGateway extends TypertRemoteService {
   /** Import one discovered foreign plugin by its opaque ref. */
   @Remote('importLocal')
   async importLocal(ref: string): Promise<AgentPluginsSnapshot> {
-    return this.serializeMutation(async () => {
+    return this.serializeMutation(`importLocal ${ref}`, async () => {
       await this.ctx.pluginBridgeRuntime.importLocalPlugin(ref)
       return this.snapshot()
     })
@@ -178,17 +223,22 @@ export class AgentPluginsGateway extends TypertRemoteService {
 
   /** Install a named plugin from one Bridge-owned marketplace. */
   @Remote('installPlugin')
-  async installPlugin(name: string, marketplace: string): Promise<AgentPluginsSnapshot> {
-    return this.serializeMutation(async () => {
-      await this.ctx.pluginBridgeRuntime.install(`${name}@${marketplace}`)
-      return this.snapshot()
-    })
+  async installPlugin(name: string, marketplace: string): Promise<AgentPluginsInstallResult> {
+    try {
+      const snapshot = await this.serializeMutation(`installPlugin ${name}@${marketplace}`, async () => {
+        await this.ctx.pluginBridgeRuntime.install(`${name}@${marketplace}`)
+        return this.snapshot()
+      })
+      return { status: 'installed', snapshot }
+    } catch (error: unknown) {
+      return { status: 'failed', reason: classifyInstallFailure(error) }
+    }
   }
 
   /** Enable or disable one Bridge-owned installation. */
   @Remote('setEnabled')
   async setEnabled(name: string, enabled: boolean): Promise<AgentPluginsSnapshot> {
-    return this.serializeMutation(async () => {
+    return this.serializeMutation(`setEnabled ${name}=${String(enabled)}`, async () => {
       if (enabled) await this.ctx.pluginBridgeRuntime.enable(name)
       else await this.ctx.pluginBridgeRuntime.disable(name)
       return this.snapshot()

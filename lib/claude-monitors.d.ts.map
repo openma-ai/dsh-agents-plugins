@@ -1,0 +1,1 @@
+{"version":3,"file":"claude-monitors.d.ts","sourceRoot":"","sources":["../src/claude-monitors.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,OAAO,EAAE,MAAM,qBAAqB,CAAA;AAClD,OAAO,EAEL,KAAK,2BAA2B,EACjC,MAAM,mCAAmC,CAAA;AAE1C,eAAO,MAAM,IAAI,kCAAkC,CAAA;AACnD,eAAO,MAAM,MAAM,UAA2B,CAAA;AAE9C,wBAAgB,KAAK,CAAC,GAAG,EAAE,OAAO,EAAE,MAAM,EAAE,2BAA2B,GAAG,IAAI,CAE7E"}

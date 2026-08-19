@@ -13,6 +13,7 @@ const installationSchema = z.object({
     enabled: z.boolean(),
     rowCount: z.number(),
     protectedCount: z.number(),
+    requiredHosts: z.array(z.string()),
     unsupportedCount: z.number(),
     diagnostics: z.array(z.string()),
 });
@@ -20,6 +21,13 @@ const snapshotSchema = z.object({
     marketplaces: z.array(marketplaceSchema),
     installations: z.array(installationSchema),
 });
+const installResultSchema = z.discriminatedUnion('status', [
+    z.object({ status: z.literal('installed'), snapshot: snapshotSchema }),
+    z.object({
+        status: z.literal('failed'),
+        reason: z.enum(['timeout', 'source', 'unsupported', 'invalid', 'activation', 'already-installed', 'unknown']),
+    }),
+]);
 const localDiscoverySchema = z.object({
     candidates: z.array(z.object({
         ref: z.string(),
@@ -72,7 +80,7 @@ export const TYPERT_REMOTE = {
         descriptor('installPlugin', [
             parameter('installPlugin', 'name', z.string()),
             parameter('installPlugin', 'marketplace', z.string()),
-        ], 'AgentPluginsSnapshot', snapshotSchema),
+        ], 'AgentPluginsInstallResult', installResultSchema),
         descriptor('setEnabled', [
             parameter('setEnabled', 'name', z.string()),
             parameter('setEnabled', 'enabled', z.boolean()),

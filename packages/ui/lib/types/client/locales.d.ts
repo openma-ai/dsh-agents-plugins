@@ -6,6 +6,13 @@ export declare const zh: {
     loadError: string;
     retry: string;
     mutationError: string;
+    installErrorTimeout: string;
+    installErrorInstalled: string;
+    installErrorUnsupported: string;
+    installErrorInvalid: string;
+    installErrorActivation: string;
+    installErrorSource: string;
+    installErrorGeneric: string;
     rescan: string;
     installed: string;
     installedEmpty: string;
@@ -13,6 +20,9 @@ export declare const zh: {
     marketplaceLocation: string;
     add: string;
     configuredEmpty: string;
+    plugins: string;
+    searchPlugins: string;
+    noPluginMatches: string;
     discoveredMarketplaces: string;
     discoveredMarketplacesEmpty: string;
     discoveredLocal: string;
@@ -20,6 +30,7 @@ export declare const zh: {
     rows: string;
     protected: string;
     unsupported: string;
+    codexHostRequired: string;
     enabled: string;
     disabled: string;
     foreignEnabled: string;
@@ -27,6 +38,8 @@ export declare const zh: {
     enable: string;
     disable: string;
     install: string;
+    installing: string;
+    working: string;
     import: string;
 };
 export type PluginBridgeLocaleKey = keyof typeof zh;
@@ -38,6 +51,13 @@ export declare const en: {
     loadError: string;
     retry: string;
     mutationError: string;
+    installErrorTimeout: string;
+    installErrorInstalled: string;
+    installErrorUnsupported: string;
+    installErrorInvalid: string;
+    installErrorActivation: string;
+    installErrorSource: string;
+    installErrorGeneric: string;
     rescan: string;
     installed: string;
     installedEmpty: string;
@@ -45,6 +65,9 @@ export declare const en: {
     marketplaceLocation: string;
     add: string;
     configuredEmpty: string;
+    plugins: string;
+    searchPlugins: string;
+    noPluginMatches: string;
     discoveredMarketplaces: string;
     discoveredMarketplacesEmpty: string;
     discoveredLocal: string;
@@ -52,6 +75,7 @@ export declare const en: {
     rows: string;
     protected: string;
     unsupported: string;
+    codexHostRequired: string;
     enabled: string;
     disabled: string;
     foreignEnabled: string;
@@ -59,6 +83,8 @@ export declare const en: {
     enable: string;
     disable: string;
     install: string;
+    installing: string;
+    working: string;
     import: string;
 };
 //# sourceMappingURL=locales.d.ts.map

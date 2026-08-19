@@ -4,10 +4,14 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 import { Context } from '@deepseek-ai/cordis'
-import { dshSkillsAdapter } from '../src/adapters/dsh-skills.js'
+import SkillRegistry from '@deepseek-ai/dsh-skill'
+import { dshPiSkillsAdapter } from '../src/adapters/dsh-pi-skills.js'
+import { dshPromptCommandsAdapter } from '../src/adapters/dsh-prompt-commands.js'
+import { dshThemesAdapter } from '../src/adapters/dsh-themes.js'
 import { createPiInstalledPluginLocator } from '../src/discovery/pi.js'
 import { PluginBridgeKernel } from '../src/kernel.js'
 import { DirectoryPackageSource } from '../src/package-source.js'
+import * as PiSkills from '../src/pi-skills.js'
 import { piPackageProvider } from '../src/providers/pi-package.js'
 
 async function packageRoot(
@@ -20,25 +24,48 @@ async function packageRoot(
   return root
 }
 
-test('Pi manifest maps only directory skills onto the shared DSH skill capability', async () => {
+test('Pi manifest keeps its complete skill resource expression in one adapter-owned component', async () => {
   const root = await packageRoot({
     name: 'pi-toolbox',
     version: '1.2.3',
     pi: {
       extensions: ['./extensions'],
-      skills: ['./skills'],
+      skills: ['./skills', './single.md', './nested/**/SKILL.md', '!./nested/legacy/**'],
       prompts: ['./prompts'],
       themes: ['./themes'],
     },
-  }, ['extensions', 'skills', 'prompts', 'themes'])
+  }, ['extensions', 'skills', 'prompts', 'themes', 'nested'])
+  await writeFile(join(root, 'single.md'), '# Single')
 
   const detected = piPackageProvider.probe(new DirectoryPackageSource(root))
 
   assert.deepEqual(detected?.components, [
-    { type: 'pi-extension', path: 'extensions/' },
-    { type: 'skill', path: 'skills/' },
-    { type: 'pi-prompt', path: 'prompts/' },
-    { type: 'pi-theme', path: 'themes/' },
+    {
+      type: 'pi-extension-set',
+      path: 'package.json',
+      manifestField: 'pi.extensions',
+      metadata: { entries: ['extensions'] },
+    },
+    {
+      type: 'pi-skill-set',
+      path: 'package.json',
+      manifestField: 'pi.skills',
+      metadata: {
+        entries: ['skills', 'single.md', 'nested/**/SKILL.md', '!nested/legacy/**'],
+      },
+    },
+    {
+      type: 'pi-prompt-set',
+      path: 'package.json',
+      manifestField: 'pi.prompts',
+      metadata: { entries: ['prompts'] },
+    },
+    {
+      type: 'pi-theme-set',
+      path: 'package.json',
+      manifestField: 'pi.themes',
+      metadata: { entries: ['themes'] },
+    },
   ])
 })
 
@@ -52,10 +79,26 @@ test('Pi convention directories claim a package without relying on the discovery
   const generic = await packageRoot({ name: 'ordinary-node-package', keywords: ['pi-package'] })
 
   assert.deepEqual(piPackageProvider.probe(new DirectoryPackageSource(conventional))?.components, [
-    { type: 'pi-extension', path: 'extensions/' },
-    { type: 'skill', path: 'skills/' },
-    { type: 'pi-prompt', path: 'prompts/' },
-    { type: 'pi-theme', path: 'themes/' },
+    {
+      type: 'pi-extension-set',
+      path: 'extensions/',
+      metadata: { entries: ['extensions/'] },
+    },
+    {
+      type: 'pi-skill-set',
+      path: 'skills/',
+      metadata: { entries: ['skills/'] },
+    },
+    {
+      type: 'pi-prompt-set',
+      path: 'prompts/',
+      metadata: { entries: ['prompts/'] },
+    },
+    {
+      type: 'pi-theme-set',
+      path: 'themes/',
+      metadata: { entries: ['themes/'] },
+    },
   ])
   assert.equal(piPackageProvider.probe(new DirectoryPackageSource(generic)), undefined)
 })
@@ -80,41 +123,106 @@ test('Pi provider rejects malformed resource lists and paths outside the package
   )
 })
 
-test('Pi skill directories materialize while runtime-specific resources stay explicit', async () => {
-  const root = await packageRoot({
+test('Pi skill expressions materialize through their own exact-path provider', async () => {
+  const extensionSource = 'export default function extension() {}\n'
+  const manifest = {
     name: 'pi-toolbox',
     pi: {
-      extensions: ['./extensions'],
+      extensions: ['./index.ts'],
       skills: ['./skills'],
       prompts: ['./prompts'],
       themes: ['./themes'],
     },
-  }, ['extensions', 'skills', 'prompts', 'themes'])
+  }
+  const root = await packageRoot(manifest, ['skills', 'prompts', 'themes'])
+  await writeFile(join(root, 'index.ts'), extensionSource)
   const source = new DirectoryPackageSource(root)
   const observation = piPackageProvider.probe(source)
   assert.notEqual(observation, undefined)
 
+  const { dshPiExtensionsAdapter } = await import('../src/adapters/dsh-pi-extensions.js')
   const kernel = new PluginBridgeKernel(new Context())
-  kernel.registerComponentAdapter(dshSkillsAdapter)
+  kernel.registerComponentAdapter(dshPiExtensionsAdapter)
+  kernel.registerComponentAdapter(dshPiSkillsAdapter)
+  kernel.registerComponentAdapter(dshPromptCommandsAdapter)
+  kernel.registerComponentAdapter(dshThemesAdapter)
   const result = kernel.materializePackage(source, {
     provider: piPackageProvider.name,
     ...observation!,
   })
 
-  assert.deepEqual(result.rows, [{
-    id: 'plugin-bridge-pi-toolbox-skill-skills',
-    name: '@deepseek-ai/dsh-skill-filesystem',
-    config: {
-      providerName: 'plugin-bridge-pi-toolbox-skills',
-      includeDefaultRoots: false,
-      customSkillDirs: [join(await realpath(root), 'skills')],
+  assert.deepEqual(result.rows, [
+    {
+      id: 'plugin-bridge-pi-toolbox-pi-extensions',
+      name: '@openma/dsh-agents-plugins-bridge/pi-extension-host',
+      config: {
+        pluginName: 'pi-toolbox',
+        pluginRoot: await realpath(root),
+        entries: ['index.ts'],
+      },
     },
-  }])
-  assert.deepEqual(result.unsupported, [
-    { type: 'pi-extension', path: 'extensions/' },
-    { type: 'pi-prompt', path: 'prompts/' },
-    { type: 'pi-theme', path: 'themes/' },
+    {
+      id: 'plugin-bridge-pi-toolbox-pi-skills',
+      name: '@openma/dsh-agents-plugins-bridge/pi-skills',
+      config: {
+        providerName: 'plugin-bridge-pi-toolbox-pi-skills',
+        pluginRoot: await realpath(root),
+        entries: ['skills'],
+      },
+    },
+    {
+      id: 'plugin-bridge-pi-toolbox-prompt-prompts',
+      name: '@openma/dsh-agents-plugins-bridge/prompt-commands',
+      config: {
+        dialect: 'pi',
+        pluginName: 'pi-toolbox',
+        pluginRoot: await realpath(root),
+        entries: ['prompts'],
+      },
+    },
+    {
+      id: 'plugin-bridge-pi-toolbox-themes',
+      name: '@openma/dsh-agents-plugins-bridge-theme',
+      config: { themes: [] },
+    },
   ])
+  assert.deepEqual(result.activations, [])
+  assert.deepEqual(result.unsupported, [])
+})
+
+test('Pi skill provider honors recursive discovery, flat files, globs, and exclusions', async () => {
+  const root = await packageRoot({ name: 'pi-toolbox' }, ['skills/alpha', 'skills/legacy/old'])
+  await writeFile(join(root, 'skills', 'alpha', 'SKILL.md'), `---
+name: alpha
+description: Alpha workflow
+---
+Run alpha.
+`)
+  await writeFile(join(root, 'skills', 'flat.md'), `---
+name: flat
+description: Flat workflow
+---
+Run flat.
+`)
+  await writeFile(join(root, 'skills', 'legacy', 'old', 'SKILL.md'), `---
+name: old
+description: Old workflow
+---
+Run old.
+`)
+
+  const ctx = new Context()
+  await ctx.plugin(SkillRegistry)
+  await ctx.plugin(PiSkills, {
+    providerName: 'plugin-bridge-pi-toolbox-pi-skills',
+    pluginRoot: root,
+    entries: ['skills/**', '!skills/legacy/**'],
+  })
+
+  assert.deepEqual((await ctx.skills.list()).map(skill => skill.name), ['alpha', 'flat'])
+  const alpha = await ctx.skills.get('alpha')
+  assert.equal(alpha?.content, 'Run alpha.')
+  assert.deepEqual(alpha?.resourceBase, { kind: 'directory', path: join(await realpath(root), 'skills', 'alpha') })
 })
 
 test('Pi locator resolves npm, git, and local settings entries while isolating broken packages', async () => {

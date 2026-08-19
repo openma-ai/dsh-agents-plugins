@@ -15,6 +15,7 @@ it('the bridge panel renders four real capability sections and wires every actio
         enabled: true,
         rowCount: 2,
         protectedCount: 1,
+        requiredHosts: ['codex'],
         unsupportedCount: 0,
         diagnostics: [],
       }],
@@ -73,6 +74,8 @@ it('the bridge panel renders four real capability sections and wires every actio
   for (const detail of ['enabled', 'protected', 'unsupported', 'main', 'personal', 'user']) {
     expect(rendered).toContain(detail)
   }
+  expect(root.findByProps({ 'data-notice': 'codex-host-required' })).toBeDefined()
+  expect(rendered).toContain('codexHostRequired')
 
   for (const button of root.findAllByType('button')) {
     expect(typeof button.props.onClick, `button ${String(button.props['data-action'])} has no action`).toBe('function')
@@ -94,4 +97,53 @@ it('the bridge panel renders four real capability sections and wires every actio
     'importLocal:codex-local-cache:personal/local-demo/1.0.0',
     'addMarketplace',
   ])
+})
+
+it('a large marketplace is searchable inside one bounded catalog instead of becoming a button cloud', async () => {
+  const ui = await import('../src/client/PluginBridgeContent.js')
+  const plugins = Array.from({ length: 255 }, (_, index) => `plugin-${String(index).padStart(3, '0')}`)
+  const view = {
+    snapshot: {
+      installations: [],
+      marketplaces: [{
+        name: 'claude-plugins-official',
+        provider: 'claude-code-marketplace',
+        plugins,
+      }],
+    },
+    marketplaces: { candidates: [], diagnostics: [] },
+    local: { candidates: [], diagnostics: [] },
+  }
+  let renderer: TestRenderer.ReactTestRenderer
+  await act(async () => {
+    renderer = TestRenderer.create(createElement(ui.PluginBridgeContent as never, {
+      view,
+      busyAction: null,
+      marketplaceLocation: '',
+      t: (key: string) => key,
+      onMarketplaceLocationChange: () => {},
+      onRescan: async () => {},
+      onAddMarketplace: async () => {},
+      onImportMarketplace: async () => {},
+      onImportLocal: async () => {},
+      onInstall: async () => {},
+      onSetEnabled: async () => {},
+    }))
+  })
+
+  const root = renderer!.root
+  const catalog = root.findByProps({ 'data-catalog': 'claude-plugins-official' })
+  expect(catalog.type).toBe('details')
+  expect(catalog.findByProps({ 'data-catalog-summary': true }).props['aria-label']).toContain('255')
+  expect(catalog.findByProps({ 'data-catalog-scroll': true })).toBeDefined()
+  expect(catalog.findAllByProps({ 'data-catalog-plugin': true })).toHaveLength(255)
+  expect(catalog.findByProps({ 'data-action': 'filter-marketplace' }).props['data-control-size']).toBe('large')
+
+  await act(async () => {
+    catalog.findByProps({ 'data-action': 'filter-marketplace' }).props.onChange({
+      currentTarget: { value: 'plugin-127' },
+    })
+  })
+  expect(catalog.findAllByProps({ 'data-catalog-plugin': true })).toHaveLength(1)
+  expect(catalog.findByProps({ title: 'plugin-127' })).toBeDefined()
 })
