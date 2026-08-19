@@ -27,7 +27,6 @@ async function main() {
       continue
     }
     const args = ['publish', '--access', 'public']
-    if (process.env.GITHUB_ACTIONS === 'true') args.push('--provenance')
     const result = npm(args, join(root, pkg.directory), 'inherit')
     if (result.status !== 0) throw new Error(`publishing ${pkg.name}@${pkg.version} failed`)
   }

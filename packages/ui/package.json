@@ -8,7 +8,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/openma-ai/dsh-agents-plugins-bridge.git",
+    "url": "git+https://github.com/openma-ai/dsh-agents-plugins.git",
     "directory": "packages/ui"
   },
   "type": "module",
