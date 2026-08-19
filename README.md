@@ -151,7 +151,10 @@ Package-owned wrapper entries are important under pnpm: the profile resolves
 only `@openma/dsh-agents-plugins-bridge/*`; each wrapper resolves its runtime
 from the Bridge package's own dependency graph, imports it through DSH's Loader,
 and mounts it as a child Cordis plugin. Transitive dependency hoisting is never
-part of the runtime contract.
+part of the runtime contract. Web-capable wrapper rows also expose their own
+`<row>/package.json` plus an exact-id browser bundle, so DSH's official
+`dsh.client` scanner builds the Browser tree from the same row instead of
+requiring a second UI package in the profile.
 
 The lifecycle kernel exposes six reversible registries:
 

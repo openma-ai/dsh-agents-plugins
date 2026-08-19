@@ -49,7 +49,7 @@ test('Pi themes resolve variables and xterm colors into a namespaced DSH client 
   assert.deepEqual(result.unsupported, [])
   assert.deepEqual(result.rows, [{
     id: 'plugin-bridge-pi-toolbox-themes',
-    name: '@openma/dsh-agents-plugins-bridge-theme',
+    name: '@openma/dsh-agents-plugins-bridge/theme',
     config: {
       themes: [{
         id: 'pi-toolbox-ocean',
@@ -95,7 +95,7 @@ test('Claude themes retain base palette semantics and map supported override rol
 
   assert.deepEqual(result.rows, [{
     id: 'plugin-bridge-review-pack-themes',
-    name: '@openma/dsh-agents-plugins-bridge-theme',
+    name: '@openma/dsh-agents-plugins-bridge/theme',
     config: {
       themes: [{
         id: 'review-pack-paper',

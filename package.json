@@ -57,6 +57,16 @@
       "types": "./lib/mcp-apps-web.d.ts",
       "default": "./lib/mcp-apps-web.js"
     },
+    "./ui": {
+      "types": "./lib/ui.d.ts",
+      "default": "./lib/ui.js"
+    },
+    "./ui/package.json": "./client-manifests/ui/package.json",
+    "./theme": {
+      "types": "./lib/theme.d.ts",
+      "default": "./lib/theme.js"
+    },
+    "./theme/package.json": "./client-manifests/theme/package.json",
     "./prompt-commands": {
       "types": "./lib/prompt-commands.d.ts",
       "default": "./lib/prompt-commands.js"
@@ -206,6 +216,7 @@
   },
   "files": [
     "lib",
+    "client-manifests",
     "cordis.patch.yml",
     "docs/images",
     "README.md",
@@ -220,7 +231,8 @@
     "build:core": "tsc -p tsconfig.build.json",
     "build:ui": "npm run build --workspace @openma/dsh-agents-plugins-bridge-ui",
     "build:workspaces": "npm run build --workspaces --if-present",
-    "build": "npm run build:core && npm run build:workspaces",
+    "build:owned-clients": "node scripts/build-owned-client-bundles.mjs",
+    "build": "npm run build:core && npm run build:workspaces && npm run build:owned-clients",
     "prepare": "npm run build",
     "test:core": "tsx --test tests/**/*.spec.ts",
     "test": "npm run test:core && npm run test --workspaces --if-present",

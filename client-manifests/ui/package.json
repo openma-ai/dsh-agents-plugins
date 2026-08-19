@@ -1,0 +1,19 @@
+{
+  "name": "@openma/dsh-agents-plugins-bridge-ui",
+  "type": "module",
+  "exports": {
+    "./client": "../../lib/ui-client.js"
+  },
+  "dsh": {
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-api-remotes",
+        "@deepseek-ai/dsh-client-runtime",
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-ui-settings-plugins"
+      ],
+      "platform": "web"
+    }
+  }
+}

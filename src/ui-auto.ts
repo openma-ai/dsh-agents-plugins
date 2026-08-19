@@ -8,7 +8,7 @@ const SURFACE_ROWS = [
   },
   {
     id: 'plugin-bridge-ui',
-    name: '@openma/dsh-agents-plugins-bridge-ui',
+    name: '@openma/dsh-agents-plugins-bridge/ui',
   },
 ] as const
 

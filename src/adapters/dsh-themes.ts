@@ -32,7 +32,7 @@ export const dshThemesAdapter: ComponentAdapter = {
     return {
       rows: [{
         id: `plugin-bridge-${slug(pluginName)}-themes`,
-        name: '@openma/dsh-agents-plugins-bridge-theme',
+        name: '@openma/dsh-agents-plugins-bridge/theme',
         config: { themes: loaded.themes },
       }],
       ...loaded.diagnostics.length === 0 ? {} : { diagnostics: loaded.diagnostics },

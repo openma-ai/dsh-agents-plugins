@@ -182,7 +182,7 @@ test('Pi skill expressions materialize through their own exact-path provider', a
     },
     {
       id: 'plugin-bridge-pi-toolbox-themes',
-      name: '@openma/dsh-agents-plugins-bridge-theme',
+      name: '@openma/dsh-agents-plugins-bridge/theme',
       config: { themes: [] },
     },
   ])

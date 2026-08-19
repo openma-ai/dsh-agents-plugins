@@ -1,0 +1,15 @@
+{
+  "name": "@openma/dsh-agents-plugins-bridge-theme",
+  "type": "module",
+  "exports": {
+    "./client": "../../lib/theme-client.js"
+  },
+  "dsh": {
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-theme"
+      ],
+      "platform": "web"
+    }
+  }
+}

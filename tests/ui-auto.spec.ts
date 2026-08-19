@@ -5,7 +5,7 @@ import Loader from '@deepseek-ai/cordis-plugin-loader'
 import * as UiAuto from '../src/ui-auto.js'
 
 const UI_HOST = '@openma/dsh-agents-plugins-bridge/ui-host'
-const UI_CLIENT = '@openma/dsh-agents-plugins-bridge-ui'
+const UI_CLIENT = '@openma/dsh-agents-plugins-bridge/ui'
 
 class WebServerProbe extends Service {
   constructor(ctx: Context) {
