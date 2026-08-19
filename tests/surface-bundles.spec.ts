@@ -25,7 +25,7 @@ test('root package is the one-install bundle while its Web surface stays adaptiv
     dependencies?: Record<string, string>
     publishConfig?: { access?: string }
   }
-  assert.equal(manifest.dependencies?.['@openma/dsh-agents-plugins-bridge-ui'], '0.0.2')
+  assert.equal(manifest.dependencies?.['@openma/dsh-agents-plugins-bridge-ui'], '0.0.3')
   assert.equal(manifest.dependencies?.['@openma/dsh-mcp-apps'], '0.0.2')
   assert.equal(manifest.bundledDependencies, undefined)
   assert.equal(manifest.publishConfig?.access, 'public')
