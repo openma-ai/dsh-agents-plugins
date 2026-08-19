@@ -1,6 +1,6 @@
 {
   "name": "@openma/dsh-agents-plugins-bridge-ui",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "DeepSeek Harness Web settings UI for the Agent Plugins bridge",
   "license": "MIT",
   "publishConfig": {
