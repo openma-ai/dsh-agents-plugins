@@ -71,6 +71,79 @@ test('/plugin-bridge rejects unsupported subcommands with the owned usage', () =
   })
 })
 
+test('/plugin-bridge discover groups readable import actions without exposing local paths', async () => {
+  const kernel = new PluginBridgeKernel(new Context())
+  const runtime: PluginBridgeManagement = {
+    listMarketplaces: () => [],
+    listInstallations: () => [],
+    async addMarketplace() { throw new Error('unexpected addMarketplace call') },
+    async install() { throw new Error('unexpected install call') },
+    async discoverLocalPlugins() {
+      return {
+        candidates: [
+          {
+            ref: 'claude-code-installed:demo@official#user',
+            locator: 'claude-code-installed', key: 'demo@official#user', name: 'claude-demo',
+            root: '/Users/example/.claude/plugins/cache/demo', evidence: 'installed-registry' as const,
+            version: '1.0.0', scope: 'user', enabled: true,
+          },
+          {
+            ref: 'codex-local-cache:personal/codex-demo/2.0.0',
+            locator: 'codex-local-cache', key: 'personal/codex-demo/2.0.0', name: 'codex-demo',
+            root: '/Users/example/.codex/plugins/cache/demo', evidence: 'plugin-cache' as const,
+            version: '2.0.0', enabled: false,
+          },
+          {
+            ref: 'pi-installed-user:user/npm/%40llblab%2Fpi-telegram',
+            locator: 'pi-installed-user', key: 'user/npm/%40llblab%2Fpi-telegram',
+            name: '@llblab/pi-telegram', root: '/Users/example/.pi/agent/npm/node_modules/@llblab/pi-telegram',
+            evidence: 'installed-registry' as const, version: '0.36.5', scope: 'user',
+          },
+        ],
+        diagnostics: ['pi-installed-project: settings unavailable'],
+      }
+    },
+    async importLocalPlugin() { throw new Error('unexpected importLocalPlugin call') },
+    async discoverRegisteredMarketplaces() {
+      throw new Error('unexpected discoverRegisteredMarketplaces call')
+    },
+    async importRegisteredMarketplace() {
+      throw new Error('unexpected importRegisteredMarketplace call')
+    },
+    async reviewActivations() { throw new Error('unexpected reviewActivations call') },
+    async approveActivation() { throw new Error('unexpected approveActivation call') },
+    async enable() { throw new Error('unexpected enable call') },
+    async disable() { throw new Error('unexpected disable call') },
+    async uninstall() { throw new Error('unexpected uninstall call') },
+  }
+
+  const result = await executePluginBridgeCommand(kernel, 'discover', runtime)
+
+  assert.deepEqual(result, {
+    kind: 'success',
+    text: [
+      'Discovered local plugins: 3',
+      '',
+      'Claude Code (1)',
+      '- claude-demo (1.0.0) · installed · user · enabled',
+      '  - Import: /plugin-bridge import claude-code-installed:demo@official#user',
+      '',
+      'Codex (1)',
+      '- codex-demo (2.0.0) · cache · disabled',
+      '  - Import: /plugin-bridge import codex-local-cache:personal/codex-demo/2.0.0',
+      '',
+      'Pi (1)',
+      '- @llblab/pi-telegram (0.36.5) · installed · user',
+      '  - Import: /plugin-bridge import pi-installed-user:user/npm/%40llblab%2Fpi-telegram',
+      '',
+      'Diagnostics:',
+      '- pi-installed-project: settings unavailable',
+    ].join('\n'),
+  })
+  assert.doesNotMatch(result.text ?? '', /\/Users\/example/u)
+  assert.doesNotMatch(result.text ?? '', /\t/u)
+})
+
 test('/plugin-bridge management commands call the one runtime manager', async () => {
   const kernel = new PluginBridgeKernel(new Context())
   const calls: string[] = []
@@ -155,7 +228,12 @@ test('/plugin-bridge management commands call the one runtime manager', async ()
   assert.deepEqual(await executePluginBridgeCommand(kernel, 'discover', runtime), {
     kind: 'success',
     text: [
-      'codex-local-cache:personal/demo/1.0.0\tdemo\t1.0.0\tplugin-cache\tenabled\t/foreign/demo',
+      'Discovered local plugins: 1',
+      '',
+      'Codex (1)',
+      '- demo (1.0.0) · cache · enabled',
+      '  - Import: /plugin-bridge import codex-local-cache:personal/demo/1.0.0',
+      '',
       'Diagnostics:',
       '- claude-code-installed: registry unavailable',
     ].join('\n'),

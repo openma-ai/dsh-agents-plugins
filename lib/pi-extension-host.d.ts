@@ -10,6 +10,7 @@ export interface MountedPiExtension {
     dispatch(type: string, event: Readonly<Record<string, unknown>>): Promise<unknown[]>;
     dispose(): Promise<void>;
 }
+export declare function renderPiSystemPrompt(agent: Agent, signal: AbortSignal): Promise<string>;
 /** Load one copied Pi package into the exact DSH agent scope that consumes it. */
 export declare function mountPiExtensionForAgent(ctx: Context, agent: Agent, rawConfig: PiExtensionHostConfig): Promise<MountedPiExtension>;
 export declare const name = "plugin-bridge-pi-extension-host";

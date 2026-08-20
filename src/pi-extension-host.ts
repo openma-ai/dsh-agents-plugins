@@ -1,22 +1,27 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
-import { installModelSelection, type ModelSelectionRef } from '@deepseek-ai/dsh-agent'
-import { createScope } from '@deepseek-ai/dsh-scope'
+import { assembleContextFor, installModelSelection, type ModelSelectionRef } from '@deepseek-ai/dsh-agent'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
 import type { ContentBlock } from '@deepseek-ai/dsh-llm'
 import type { JsonValue } from '@deepseek-ai/dsh-session'
+import { renderPrompt } from '@deepseek-ai/dsh-system-prompt'
 import type { ToolDefinition as DshToolDefinition } from '@deepseek-ai/dsh-tools'
 import {
   createEventBus,
   createExtensionRuntime,
-  type Extension,
-  type ExtensionContext,
+  ExtensionRunner,
+  type ExtensionActions,
+  type ExtensionCommandContextActions,
+  type ExtensionContextActions,
   type ExtensionRuntime,
+  type ExtensionUIContext,
   type LoadExtensionsResult,
-  type ToolDefinition as PiToolDefinition,
+  type ModelRegistry,
+  type SessionManager,
 } from '@earendil-works/pi-coding-agent'
 import { realpathSync } from 'node:fs'
 import { relative, sep } from 'node:path'
+import { AsyncLocalStorage } from 'node:async_hooks'
 import { boundedName } from './adapters/utils.js'
 import { resolvePiExtensionFiles } from './pi-extension-files.js'
 
@@ -30,6 +35,10 @@ export interface PiExtensionHostConfig {
 export interface MountedPiExtension {
   dispatch(type: string, event: Readonly<Record<string, unknown>>): Promise<unknown[]>
   dispose(): Promise<void>
+}
+
+export async function renderPiSystemPrompt(agent: Agent, signal: AbortSignal): Promise<string> {
+  return renderPrompt(await agent.ctx.systemPrompt.assemble(assembleContextFor(agent, signal)))
 }
 
 interface PiLoaderModule {
@@ -206,19 +215,18 @@ export async function mountPiExtensionForAgent(
   const entries = configEntries(rawConfig.entries)
   const files = resolvePiExtensionFiles(pluginRoot, entries)
   if (files.length === 0) throw new Error(`${pluginName}: no loadable Pi extension entrypoints`)
+  const cwd = agent.session.header.cwd ?? process.cwd()
 
-  const capabilityScope = createScope(ctx, agent)
-  const capabilityCtx = capabilityScope.ctx
+  const capabilityCtx = ctx
 
   const runtime = createExtensionRuntime()
   const bus = createEventBus()
   const loader = await piLoader()
-  const loaded = await loader.loadExtensions(files, pluginRoot, bus, runtime)
+  const loaded = await loader.loadExtensions(files, cwd, bus, runtime)
   if (loaded.errors.length > 0) {
     throw new Error(loaded.errors.map(error => `${relativePath(pluginRoot, error.path)}: ${error.error}`).join('\n'))
   }
 
-  const extensions = loaded.extensions
   const disposers: Array<() => Promise<void> | void> = []
   const notices: string[] = []
   const customEntries: Array<Record<string, unknown>> = []
@@ -238,6 +246,20 @@ export async function mountPiExtensionForAgent(
   let sessionName: string | undefined
   let activeTools = new Set<string>()
   const toolDisposers = new Map<string, () => void>()
+  const execution = new AsyncLocalStorage<{ signal?: AbortSignal; sink: string[]; systemPrompt?: string }>()
+  const promptOverrides = new WeakMap<AbortSignal, string>()
+  let effectiveSystemPrompt = ''
+  const disposePromptAssembly = capabilityCtx.on('system-prompt/assemble', async (assembly, context, next) => {
+    const assembled = await next()
+    if (context.signal === undefined || !promptOverrides.has(context.signal)) return assembled
+    const override = promptOverrides.get(context.signal)!
+    effectiveSystemPrompt = override
+    return {
+      ...assembled,
+      sections: [{ name: `pi:${pluginName}`, text: override }],
+    }
+  })
+  disposers.push(() => { disposePromptAssembly() })
 
   function availableName(
     foreignName: string,
@@ -260,7 +282,6 @@ export async function mountPiExtensionForAgent(
   async function ask(
     prompt: string,
     options: readonly string[] | undefined,
-    signal?: AbortSignal,
   ): Promise<{ selected: string[]; custom?: string }> {
     const service = questionService(agent.ctx)
     if (service === undefined) throw new Error('Pi extension UI requires a DSH user-questions provider')
@@ -271,111 +292,101 @@ export async function mountPiExtensionForAgent(
         ...options === undefined ? {} : { options: options.map(label => ({ label })) },
       }],
       agent,
-      signal,
+      signal: execution.getStore()?.signal,
     })
     return answer.answers[0] ?? { selected: [] }
   }
 
-  function extensionContext(signal?: AbortSignal, sink = notices): ExtensionContext {
-    const model = modelFor(agent, selection)
-    const sessionEntries = [
+  const sessionEntries = (): Array<Record<string, unknown>> => [
       ...agent.session.events.map(event => ({ ...event, id: `dsh-${event.seq}` })),
       ...customEntries,
     ]
-    return {
-      mode: 'tui',
-      hasUI: questionService(agent.ctx) !== undefined,
-      cwd: agent.session.header.cwd ?? process.cwd(),
-      sessionManager: {
-        getEntries: () => sessionEntries,
-        getSessionName: () => sessionName,
-      } as never,
-      modelRegistry: {
-        getAvailable: () => [model],
-        refresh: async () => undefined,
-        isUsingOAuth: () => false,
-      } as never,
-      model: model as never,
-      scopedModels: [],
-      thinkingLevel: thinkingLevel as never,
-      isIdle: () => agent.status === 'idle',
-      isProjectTrusted: () => true,
-      signal,
-      abort: () => agent.cancel({ kind: 'user' }),
-      hasPendingMessages: () => agent.inbox.hasPending,
-      shutdown: () => agent.cancel({ kind: 'user' }),
-      getContextUsage: () => undefined,
-      compact: options => {
-        const compaction = ctx.get('compaction' as never) as {
-          compactNow(target: Agent, operationSignal: AbortSignal): Promise<unknown>
-        } | undefined
-        if (compaction === undefined) {
-          options?.onError?.(new Error('DSH compaction service is unavailable'))
-          return
-        }
-        void compaction.compactNow(agent, signal ?? new AbortController().signal)
-          .then(result => { options?.onComplete?.(result as never) })
-          .catch(error => { options?.onError?.(error instanceof Error ? error : new Error(String(error))) })
-      },
-      getSystemPrompt: () => '',
-      ui: {
-        notify(message: string) { sink.push(message) },
-        setStatus(key: string, value: string | undefined) {
-          if (value === undefined) status.delete(key)
-          else status.set(key, value)
-        },
-        setWidget() {},
-        setWorkingMessage() {},
-        setTitle() {},
-        setEditorText() {},
-        getEditorText: () => '',
-        theme,
-        async confirm(title: string, message: string) {
-          const answer = await ask(`${title}\n\n${message}`, ['Yes', 'No'], signal)
-          return answer.selected.includes('Yes')
-        },
-        async input(title: string, placeholder?: string) {
-          const answer = await ask(placeholder === undefined ? title : `${title}\n${placeholder}`, undefined, signal)
-          return answer.custom ?? answer.selected[0]
-        },
-        async editor(title: string, prefill?: string) {
-          const answer = await ask(prefill === undefined ? title : `${title}\n${prefill}`, undefined, signal)
-          return answer.custom ?? answer.selected[0]
-        },
-        async select(title: string, choices: Array<string | { value: string; label: string }>) {
-          const labels = choices.map(choice => typeof choice === 'string' ? choice : choice.label)
-          const answer = await ask(title, labels, signal)
-          const selected = answer.selected[0]
-          const choice = choices.find(item => (typeof item === 'string' ? item : item.label) === selected)
-          return typeof choice === 'string' ? choice : choice?.value
-        },
-        onTerminalInput() { return () => undefined },
-        get themeColor() { return undefined },
-      } as never,
-    }
+  const sessionManager = {
+    getCwd: () => cwd,
+    getSessionDir: () => rawConfig.pluginData ?? pluginRoot,
+    getSessionId: () => String(agent.id),
+    getSessionFile: () => undefined,
+    getLeafId: () => (sessionEntries().at(-1)?.id as string | undefined) ?? null,
+    getLeafEntry: () => sessionEntries().at(-1),
+    getEntry: (id: string) => sessionEntries().find(entry => entry.id === id),
+    getLabel: () => undefined,
+    getBranch: () => sessionEntries(),
+    buildContextEntries: () => sessionEntries(),
+    getHeader: () => null,
+    getEntries: () => sessionEntries(),
+    getTree: () => [],
+    getSessionName: () => sessionName,
+  } as unknown as SessionManager
+  const modelRegistry = {
+    getAvailable: () => [modelFor(agent, selection)],
+    find: (provider: string, modelId: string) => {
+      const model = modelFor(agent, selection)
+      return model.provider === provider && model.id === modelId ? model : undefined
+    },
+    refresh: async () => undefined,
+    isUsingOAuth: () => false,
+    registerProvider: () => {
+      throw new Error('pi-extension-host: Pi provider registration has no exact DSH mapping')
+    },
+    unregisterProvider: () => {
+      throw new Error('pi-extension-host: Pi provider unregistration has no exact DSH mapping')
+    },
+  } as unknown as ModelRegistry
+  const ui: ExtensionUIContext = {
+    async select(title, options) {
+      const answer = await ask(title, options)
+      return answer.selected[0]
+    },
+    async confirm(title, message) {
+      const answer = await ask(`${title}\n\n${message}`, ['Yes', 'No'])
+      return answer.selected.includes('Yes')
+    },
+    async input(title, placeholder) {
+      const answer = await ask(placeholder === undefined ? title : `${title}\n${placeholder}`, undefined)
+      return answer.custom ?? answer.selected[0]
+    },
+    async editor(title, prefill) {
+      const answer = await ask(prefill === undefined ? title : `${title}\n${prefill}`, undefined)
+      return answer.custom ?? answer.selected[0]
+    },
+    notify(message) { (execution.getStore()?.sink ?? notices).push(message) },
+    setStatus(key, value) {
+      if (value === undefined) status.delete(key)
+      else status.set(key, value)
+    },
+    onTerminalInput: () => () => undefined,
+    setWorkingMessage() {},
+    setWorkingVisible() {},
+    setWorkingIndicator() {},
+    setHiddenThinkingLabel() {},
+    setWidget() {},
+    setFooter() {},
+    setHeader() {},
+    setTitle() {},
+    custom: async () => {
+      throw new Error('pi-extension-host: custom Pi TUI components are not supported by the DSH host')
+    },
+    pasteToEditor() {},
+    setEditorText() {},
+    getEditorText: () => '',
+    addAutocompleteProvider() {},
+    setEditorComponent() {},
+    getEditorComponent: () => undefined,
+    get theme() { return theme as never },
+    getAllThemes: () => [],
+    getTheme: () => undefined,
+    setTheme: () => ({ success: false, error: 'Pi themes are owned by the DSH host' }),
+    getToolsExpanded: () => false,
+    setToolsExpanded() {},
   }
+  const runner = new ExtensionRunner(loaded.extensions, runtime, cwd, sessionManager, modelRegistry)
+  runner.setUIContext(ui, piUiModeForAgent(agent))
+  runner.onError(error => {
+    ctx.logger.warn(`${pluginName}: Pi ${error.event} hook failed in ${relativePath(pluginRoot, error.extensionPath)}: ${error.error}`)
+  })
 
-  async function dispatch(type: string, event: Readonly<Record<string, unknown>>): Promise<unknown[]> {
-    const results: unknown[] = []
-    for (const extension of extensions) {
-      for (const handler of extension.handlers.get(type) ?? []) {
-        results.push(await handler(event as never, extensionContext()))
-      }
-    }
-    return results
-  }
-
-  function registeredTools(): Array<{ definition: PiToolDefinition; extension: Extension }> {
-    const seen = new Set<string>()
-    const result: Array<{ definition: PiToolDefinition; extension: Extension }> = []
-    for (const extension of extensions) {
-      for (const [name, registered] of extension.tools) {
-        if (seen.has(name)) continue
-        seen.add(name)
-        result.push({ definition: registered.definition, extension })
-      }
-    }
-    return result
+  function registeredTools(): ReturnType<ExtensionRunner['getAllRegisteredTools']> {
+    return runner.getAllRegisteredTools()
   }
 
   function syncTools(): void {
@@ -388,7 +399,7 @@ export async function mountPiExtensionForAgent(
       } else if (enabled && dispose === undefined) {
         const dshName = toolNames.get(definition.name) ?? availableName(
           definition.name,
-          candidate => candidate === 'run_code' || ctx.tools.get(candidate, agent) !== undefined,
+          candidate => candidate === 'run_code' || capabilityCtx.tools.get(candidate, agent) !== undefined,
         )
         toolNames.set(definition.name, dshName)
         const dshTool: DshToolDefinition = {
@@ -402,19 +413,19 @@ export async function mountPiExtensionForAgent(
           ...definition.executionMode === 'parallel' ? { isConcurrencySafe: () => true } : {},
           async execute(args, exec) {
             const value = definition.prepareArguments?.(args) ?? args
-            const result = await definition.execute(
-              String(exec.callId),
-              value as never,
-              exec.signal,
-              partial => void dispatch('tool_execution_update', {
-                type: 'tool_execution_update',
-                toolCallId: String(exec.callId),
-                toolName: definition.name,
-                args,
-                partialResult: partial,
-              }),
-              extensionContext(exec.signal),
-            )
+            const result = await execution.run({ signal: exec.signal, sink: notices }, () => definition.execute(
+                String(exec.callId),
+                value as never,
+                exec.signal,
+                partial => void runner.emit({
+                  type: 'tool_execution_update',
+                  toolCallId: String(exec.callId),
+                  toolName: definition.name,
+                  args,
+                  partialResult: partial,
+                }),
+                runner.createContext(),
+              ))
             return canonicalToolResult(result)
           },
         }
@@ -423,11 +434,116 @@ export async function mountPiExtensionForAgent(
     }
   }
 
-  for (const extension of extensions) {
-    for (const [commandName, command] of extension.commands) {
+  const extensionActions: ExtensionActions = {
+    sendUserMessage(content, options) {
+      const message = createUserMessage({ content: textFromInput(content), source: { kind: 'user' } })
+      if (options?.deliverAs === 'followUp') agent.followup(message)
+      else agent.steer(message)
+    },
+    sendMessage(message, options) {
+      const userMessage = createUserMessage({ content: textFromInput(message.content), source: { kind: 'user' } })
+      if (options?.deliverAs === 'followUp' || options?.deliverAs === 'nextTurn') agent.followup(userMessage)
+      else if (options?.triggerTurn === false) agent.inject(userMessage)
+      else agent.steer(userMessage)
+    },
+    appendEntry(customType, data) {
+      customEntries.push({ type: 'custom', customType, data, id: `dsh-pi-${customEntries.length + 1}` })
+    },
+    setSessionName(value) { sessionName = value },
+    getSessionName: () => sessionName,
+    setLabel() {},
+    getActiveTools: () => [...activeTools].sort(),
+    getAllTools: () => registeredTools().map(({ definition, sourceInfo }) => ({
+      name: definition.name,
+      description: definition.description,
+      parameters: definition.parameters,
+      promptGuidelines: definition.promptGuidelines,
+      sourceInfo,
+    })) as never,
+    setActiveTools(toolNameList) {
+      activeTools = new Set(toolNameList)
+      syncTools()
+    },
+    refreshTools: syncTools,
+    getCommands: () => runner.getRegisteredCommands().map(command => ({
+      name: command.invocationName,
+      description: command.description,
+      source: 'extension',
+      sourceInfo: command.sourceInfo,
+    })) as never,
+    async setModel(model) {
+      const previousModel = modelFor(agent, selection) as never
+      const reasoningEffort = selection.current?.reasoningEffort
+      selection.current = {
+        provider: model.provider,
+        model: model.id,
+        ...reasoningEffort === undefined ? {} : { reasoningEffort },
+      }
+      await runner.emit({ type: 'model_select', model, previousModel, source: 'set' })
+      return true
+    },
+    getThinkingLevel: () => thinkingLevel as never,
+    setThinkingLevel(level) {
+      const previousLevel = thinkingLevel as never
+      thinkingLevel = level
+      const selected = selection.current ?? {
+        provider: agent.options.provider ?? 'unknown',
+        model: agent.options.model ?? 'unknown',
+      }
+      selection.current = {
+        provider: selected.provider,
+        model: selected.model,
+        ...level === 'off' ? {} : { reasoningEffort: level as never },
+      }
+      void runner.emit({ type: 'thinking_level_select', level, previousLevel })
+    },
+  }
+  const contextActions: ExtensionContextActions = {
+    getModel: () => modelFor(agent, selection) as never,
+    getScopedModels: () => [],
+    isIdle: () => agent.status === 'idle',
+    isProjectTrusted: () => true,
+    getSignal: () => execution.getStore()?.signal,
+    abort: () => agent.cancel({ kind: 'user' }),
+    hasPendingMessages: () => agent.inbox.hasPending,
+    shutdown: () => agent.cancel({ kind: 'user' }),
+    getContextUsage: () => undefined,
+    compact(options) {
+      const compaction = ctx.get('compaction' as never) as {
+        compactNow(target: Agent, operationSignal: AbortSignal): Promise<unknown>
+      } | undefined
+      if (compaction === undefined) {
+        options?.onError?.(new Error('DSH compaction service is unavailable'))
+        return
+      }
+      void compaction.compactNow(agent, execution.getStore()?.signal ?? new AbortController().signal)
+        .then(result => { options?.onComplete?.(result as never) })
+        .catch(error => { options?.onError?.(error instanceof Error ? error : new Error(String(error))) })
+    },
+    getSystemPrompt: () => execution.getStore()?.systemPrompt ?? effectiveSystemPrompt,
+    getSystemPromptOptions: () => ({ cwd }),
+  }
+  const unsupportedSessionOperation = async (operation: string): Promise<{ cancelled: boolean }> => {
+    throw new Error(`pi-extension-host: Pi ${operation} has no exact DSH mapping`)
+  }
+  const commandContextActions: ExtensionCommandContextActions = {
+    waitForIdle: () => agent.whenIdle(),
+    newSession: () => unsupportedSessionOperation('newSession'),
+    fork: () => unsupportedSessionOperation('fork'),
+    navigateTree: () => unsupportedSessionOperation('navigateTree'),
+    switchSession: () => unsupportedSessionOperation('switchSession'),
+    reload: async () => {
+      throw new Error('pi-extension-host: Pi reload has no exact DSH mapping')
+    },
+  }
+  runner.bindCore(extensionActions, contextActions)
+  runner.bindCommandContext(commandContextActions)
+
+  for (const command of runner.getRegisteredCommands()) {
+      const commandName = command.invocationName
       const dshCommandName = availableName(
         commandName,
-        candidate => ctx.commands.find(agent, candidate) !== undefined,
+        candidate => capabilityCtx.commands.find(agent, candidate) !== undefined,
       )
       disposers.push(capabilityCtx.commands.register({
         name: dshCommandName,
@@ -436,19 +552,10 @@ export async function mountPiExtensionForAgent(
         async handler(invocation) {
           const commandNotices: string[] = []
           try {
-            await command.handler(
-              invocation.rawInput.trimStart(),
-              {
-                ...extensionContext(invocation.signal, commandNotices),
-                waitForIdle: () => agent.whenIdle(),
-                getSystemPromptOptions: () => ({}),
-                newSession: async () => ({ cancelled: true }),
-                fork: async () => ({ cancelled: true }),
-                navigateTree: async () => ({ cancelled: true }),
-                switchSession: async () => ({ cancelled: true }),
-                reload: async () => undefined,
-              } as never,
-            )
+            await execution.run({ signal: invocation.signal, sink: commandNotices }, () => command.handler(
+                invocation.rawInput.trimStart(),
+                runner.createCommandContext(),
+              ))
             return {
               kind: 'success' as const,
               text: commandNotices.join('\n') || `Executed /${commandName}.`,
@@ -458,104 +565,115 @@ export async function mountPiExtensionForAgent(
           }
         },
       }))
-    }
   }
 
   activeTools = new Set(registeredTools().map(item => item.definition.name))
-  runtime.refreshTools = syncTools
-  runtime.getActiveTools = () => [...activeTools].sort()
-  runtime.getAllTools = () => registeredTools().map(({ definition, extension }) => ({
-    name: definition.name,
-    description: definition.description,
-    parameters: definition.parameters,
-    promptGuidelines: definition.promptGuidelines,
-    sourceInfo: extension.sourceInfo,
-  })) as never
-  runtime.setActiveTools = toolNames => {
-    activeTools = new Set(toolNames)
-    syncTools()
-  }
-  runtime.getCommands = () => extensions.flatMap(extension => [...extension.commands.values()].map(command => ({
-    name: command.name,
-    description: command.description,
-    source: 'extension',
-    sourceInfo: command.sourceInfo,
-  }))) as never
-  runtime.getThinkingLevel = () => thinkingLevel as never
-  runtime.setThinkingLevel = level => {
-    thinkingLevel = level
-    const selected = selection.current ?? {
-      provider: agent.options.provider ?? 'unknown',
-      model: agent.options.model ?? 'unknown',
-    }
-    selection.current = {
-      provider: selected.provider,
-      model: selected.model,
-      ...level === 'off' ? {} : { reasoningEffort: level as never },
-    }
-    void dispatch('thinking_level_select', { type: 'thinking_level_select', thinkingLevel: level })
-  }
-  runtime.setModel = async model => {
-    const reasoningEffort = selection.current?.reasoningEffort
-    selection.current = {
-      provider: model.provider,
-      model: model.id,
-      ...reasoningEffort === undefined ? {} : { reasoningEffort },
-    }
-    await dispatch('model_select', { type: 'model_select', model, source: 'extension' })
-    return true
-  }
-  runtime.sendUserMessage = (content, options) => {
-    const message = createUserMessage({ content: textFromInput(content), source: { kind: 'user' } })
-    if (options?.deliverAs === 'followUp') agent.followup(message)
-    else agent.steer(message)
-  }
-  runtime.sendMessage = (message, options) => {
-    const userMessage = createUserMessage({ content: textFromInput(message.content), source: { kind: 'user' } })
-    if (options?.deliverAs === 'followUp' || options?.deliverAs === 'nextTurn') agent.followup(userMessage)
-    else if (options?.triggerTurn === false) agent.inject(userMessage)
-    else agent.steer(userMessage)
-  }
-  runtime.appendEntry = (customType, data) => {
-    customEntries.push({ type: 'custom', customType, data, id: `dsh-pi-${customEntries.length + 1}` })
-  }
-  runtime.setSessionName = value => { sessionName = value }
-  runtime.getSessionName = () => sessionName
-  runtime.setLabel = () => undefined
-  runtime.registerProvider = () => undefined
-  runtime.registerNativeProvider = () => undefined
-  runtime.unregisterProvider = () => undefined
   syncTools()
+
+  async function emit(type: string, event: Readonly<Record<string, unknown>>): Promise<unknown[]> {
+    if (type === 'before_agent_start') {
+      const result = await runner.emitBeforeAgentStart(
+        String(event.prompt ?? ''),
+        event.images as never,
+        String(event.systemPrompt ?? ''),
+        { cwd },
+      )
+      if (
+        event.signal instanceof AbortSignal
+        && result !== undefined
+        && Object.prototype.hasOwnProperty.call(result, 'systemPrompt')
+      ) {
+        promptOverrides.set(event.signal, result.systemPrompt ?? '')
+      }
+      return result === undefined ? [] : [result]
+    }
+    if (type === 'input') {
+      const result = await runner.emitInput(
+        String(event.text ?? ''),
+        event.images as never,
+        event.source as never,
+        event.streamingBehavior as never,
+      )
+      return [result]
+    }
+    if (type === 'message_end') {
+      const result = await runner.emitMessageEnd(event as never)
+      return result === undefined ? [] : [result]
+    }
+    const result = await runner.emit(event as never)
+    return result === undefined ? [] : [result]
+  }
+  let eventTail = Promise.resolve()
+  const dispatch = (type: string, event: Readonly<Record<string, unknown>>): Promise<unknown[]> => {
+    const task = eventTail.then(() => execution.run({
+      sink: notices,
+      ...event.signal instanceof AbortSignal ? { signal: event.signal } : {},
+      ...typeof event.systemPrompt === 'string' ? { systemPrompt: event.systemPrompt } : {},
+    }, () => emit(type, event)))
+    eventTail = task.then(() => undefined, () => undefined)
+    return task
+  }
 
   return {
     dispatch,
     async dispose() {
       await dispatch('session_shutdown', { type: 'session_shutdown' })
-      runtime.invalidate(`${pluginName} was disabled or unloaded from DSH`)
+      runner.invalidate(`${pluginName} was disabled or unloaded from DSH`)
       for (const dispose of [...toolDisposers.values()].reverse()) dispose()
       toolDisposers.clear()
       for (const dispose of disposers.reverse()) await dispose()
-      await capabilityScope.dispose()
     },
   }
 }
 
 export const name = 'plugin-bridge-pi-extension-host'
-export const inject = ['agents', 'commands', 'tools']
+export const inject = ['agents']
 
 export function apply(ctx: Context, config: PiExtensionHostConfig): void {
   const agents = ctx.agents
-  const mounted = new Map<Agent, Promise<MountedPiExtension>>()
+  interface AgentMount {
+    readonly ready: Promise<MountedPiExtension>
+    dispose(): Promise<void>
+  }
+  const mounted = new Map<Agent, AgentMount>()
   const activeMessages = new Set<Agent>()
   const ensure = (agent: Agent): Promise<MountedPiExtension> => {
     const current = mounted.get(agent)
-    if (current !== undefined) return current
-    const created = mountPiExtensionForAgent(ctx, agent, config).then(async runtime => {
-      await runtime.dispatch('session_start', { type: 'session_start', source: 'dsh' })
-      return runtime
+    if (current !== undefined) return current.ready
+    let resolveReady!: (runtime: MountedPiExtension) => void
+    let rejectReady!: (error: unknown) => void
+    const ready = new Promise<MountedPiExtension>((resolve, reject) => {
+      resolveReady = resolve
+      rejectReady = reject
     })
+    let disposed = false
+    const fiber = agent.ctx.inject(['commands', 'tools'], async capabilityCtx => {
+      let runtime: MountedPiExtension | undefined
+      try {
+        runtime = await mountPiExtensionForAgent(capabilityCtx, agent, config)
+        if (disposed) {
+          await runtime.dispose()
+          throw new Error(`${config.pluginName}: Agent was disposed while its Pi extension was loading`)
+        }
+        await runtime.dispatch('session_start', { type: 'session_start', source: 'dsh' })
+        resolveReady(runtime)
+        return () => runtime?.dispose()
+      } catch (error: unknown) {
+        rejectReady(error)
+        throw error
+      }
+    })
+    const created: AgentMount = {
+      ready,
+      async dispose() {
+        if (disposed) return
+        disposed = true
+        rejectReady(new Error(`${config.pluginName}: Agent was disposed before its Pi extension became ready`))
+        await fiber.dispose()
+      },
+    }
     mounted.set(agent, created)
-    return created
+    return ready
   }
   const dispatch = (agent: Agent, type: string, event: Record<string, unknown>): void => {
     void ensure(agent).then(runtime => runtime.dispatch(type, event)).catch(error => {
@@ -563,12 +681,18 @@ export function apply(ctx: Context, config: PiExtensionHostConfig): void {
     })
   }
 
-  for (const agent of agents.list()) void ensure(agent)
-  ctx.on('agent/created', ({ agent }) => { void ensure(agent) })
+  const prepare = (agent: Agent): void => {
+    void ensure(agent).catch(error => {
+      ctx.logger.warn(`${config.pluginName}: Pi extension failed to mount: ${String(error)}`)
+    })
+  }
+  for (const agent of agents.list()) prepare(agent)
+  ctx.on('agent/created', ({ agent }) => { prepare(agent) })
   ctx.on('agent/pre-step', async ({ agent, messages, signal }, next) => {
     const decision = await next()
     if (decision.kind === 'reject') return decision
     const runtime = await ensure(agent)
+    const systemPrompt = await renderPiSystemPrompt(agent, signal)
     const prompt = messages.flatMap(message => message.content)
       .filter((block): block is { type: 'text'; text: string } => block.type === 'text')
       .map(block => block.text)
@@ -577,16 +701,21 @@ export function apply(ctx: Context, config: PiExtensionHostConfig): void {
       type: 'before_agent_start',
       prompt,
       images: undefined,
-      systemPrompt: '',
+      systemPrompt,
+      signal,
     })
     const additions = results.flatMap(result => {
       if (typeof result !== 'object' || result === null) return []
-      const systemPrompt = (result as { systemPrompt?: unknown }).systemPrompt
-      if (typeof systemPrompt !== 'string' || systemPrompt.length === 0) return []
-      return [createUserMessage({
-        content: [{ type: 'text', text: systemPrompt }],
+      const extensionMessages = (result as { messages?: unknown }).messages
+      if (!Array.isArray(extensionMessages)) return []
+      return extensionMessages.map(message => createUserMessage({
+        content: textFromInput(
+          typeof message === 'object' && message !== null && 'content' in message
+            ? (message as { content: unknown }).content
+            : message,
+        ),
         source: { kind: 'plugin', plugin: `pi:${config.pluginName}` },
-      })]
+      }))
     })
     if (signal.aborted) return { kind: 'reject' }
     return { kind: 'enter', messages: [...decision.messages, ...additions] }
@@ -605,7 +734,7 @@ export function apply(ctx: Context, config: PiExtensionHostConfig): void {
   ctx.on('agent/disposed', ({ agent }) => {
     const runtime = mounted.get(agent)
     mounted.delete(agent)
-    if (runtime !== undefined) void runtime.then(value => value.dispose())
+    if (runtime !== undefined) void runtime.dispose()
   })
   ctx.on('tools/execute', async (exec, next) => {
     if (exec.agent !== undefined) {
@@ -658,7 +787,13 @@ export function apply(ctx: Context, config: PiExtensionHostConfig): void {
     }
   })
   ctx.effect(() => () => {
-    for (const runtime of mounted.values()) void runtime.then(value => value.dispose())
+    for (const runtime of mounted.values()) void runtime.dispose()
     mounted.clear()
   }, 'pi-extension-host')
+}
+export function piUiModeForAgent(agent: Agent): 'tui' | 'rpc' {
+  const mode = (agent.options as Agent['options'] & { interactionMode?: unknown }).interactionMode
+  if (mode === 'rpc') return 'rpc'
+  if (mode === 'interactive') return 'tui'
+  throw new Error(`Pi extension Agent ${String(agent.id ?? 'unknown')} does not declare an interaction mode`)
 }

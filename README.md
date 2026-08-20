@@ -8,7 +8,7 @@
 <p align="center">
   <a href="https://www.npmjs.com/package/@openma/dsh-agents-plugins-bridge"><img src="https://img.shields.io/npm/v/%40openma%2Fdsh-agents-plugins-bridge?logo=npm&color=cb3837" alt="npm version" /></a>
   <a href="https://www.npmjs.com/package/@openma/dsh-agents-plugins-bridge"><img src="https://img.shields.io/npm/dm/%40openma%2Fdsh-agents-plugins-bridge" alt="npm downloads" /></a>
-  <a href="https://github.com/openma-ai/dsh-agents-plugins/actions/workflows/release.yml"><img src="https://github.com/openma-ai/dsh-agents-plugins/actions/workflows/release.yml/badge.svg" alt="release" /></a>
+  <a href="https://github.com/openma-ai/dsh-agents-plugins-bridge/actions/workflows/release.yml"><img src="https://github.com/openma-ai/dsh-agents-plugins-bridge/actions/workflows/release.yml/badge.svg" alt="release" /></a>
   <img src="https://img.shields.io/node/v/%40openma%2Fdsh-agents-plugins-bridge" alt="Node.js 22.19+" />
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT" /></a>
 </p>
@@ -75,6 +75,17 @@ command menu is the surface Bridge commands and imported skills join.
 MCP Apps are the intentional exception: the shared MCP connection, tools,
 resources, prompts, and backend hooks work in TUI, but untrusted App HTML is
 rendered only by the Web sandbox. The terminal does not execute browser UI.
+
+### Headless owner
+
+Pi extensions such as `pi-telegram` may require one live Session even when no
+UI is open. Use
+[Martty owner](https://github.com/openma-ai/deepseek-harness-tui/blob/main/README.en.md#martty-owner-long-lived-headless-acp--pi-rpc)
+for that process lifecycle. Bridge still owns import, materialization, hooks,
+tools, commands, and extension runtime; Martty is the generic ACP `rpc` client
+that keeps the Session alive and invokes only explicitly advertised startup
+and shutdown commands. It does not auto-approve permissions or answer
+extension forms.
 
 | Capability | Web | TUI |
 |---|:---:|:---:|

@@ -1,7 +1,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { CommandResult } from '@deepseek-ai/dsh-commands'
 import type { PluginBridgeKernel } from './kernel.js'
-import type { PluginBridgeManagement } from './manager.js'
+import type { DiscoveredLocalPlugin, PluginBridgeManagement } from './manager.js'
 
 export const name = 'plugin-bridge-command'
 export const inject = ['commands', 'pluginBridge', 'pluginBridgeRuntime']
@@ -28,6 +28,23 @@ function withDiagnostics(lines: readonly string[], diagnostics: readonly string[
   const output = [...lines]
   if (diagnostics.length > 0) output.push('Diagnostics:', ...diagnostics.map(item => `- ${item}`))
   return output.join('\n')
+}
+
+function discoveryGroup(locator: string): string {
+  if (locator.startsWith('claude-code-')) return 'Claude Code'
+  if (locator.startsWith('codex-')) return 'Codex'
+  if (locator.startsWith('pi-')) return 'Pi'
+  return locator
+}
+
+function discoverySummary(candidate: DiscoveredLocalPlugin): string {
+  const details = [
+    candidate.evidence === 'installed-registry' ? 'installed' : 'cache',
+    candidate.scope,
+    candidate.enabled === undefined ? undefined : candidate.enabled ? 'enabled' : 'disabled',
+  ].filter((detail): detail is string => detail !== undefined)
+  const version = candidate.version === undefined ? '' : ` (${candidate.version})`
+  return `- ${candidate.name}${version} · ${details.join(' · ')}`
 }
 
 function installationText(action: string, plugin: Awaited<ReturnType<PluginBridgeManagement['install']>>): string {
@@ -124,17 +141,27 @@ export function executePluginBridgeCommand(
   if (input === 'discover') {
     if (runtime === undefined) return unavailable()
     return runtime.discoverLocalPlugins().then(result => {
-      const lines = result.candidates.map(candidate => [
-        candidate.ref,
-        candidate.name,
-        candidate.version ?? '-',
-        candidate.evidence,
-        candidate.enabled === undefined ? 'unknown' : candidate.enabled ? 'enabled' : 'disabled',
-        candidate.root,
-      ].join('\t'))
-      if (lines.length === 0 && result.diagnostics.length === 0) {
+      if (result.candidates.length === 0 && result.diagnostics.length === 0) {
         return { kind: 'success', text: 'No local plugins were discovered.' }
       }
+      const groups = new Map<string, DiscoveredLocalPlugin[]>()
+      for (const candidate of result.candidates) {
+        const group = discoveryGroup(candidate.locator)
+        const entries = groups.get(group) ?? []
+        entries.push(candidate)
+        groups.set(group, entries)
+      }
+      const lines = [`Discovered local plugins: ${result.candidates.length}`]
+      for (const [group, candidates] of groups) {
+        lines.push('', `${group} (${candidates.length})`)
+        for (const candidate of candidates) {
+          lines.push(
+            discoverySummary(candidate),
+            `  - Import: /plugin-bridge import ${candidate.ref}`,
+          )
+        }
+      }
+      if (result.diagnostics.length > 0) lines.push('')
       return { kind: 'success', text: withDiagnostics(lines, result.diagnostics) }
     })
   }
