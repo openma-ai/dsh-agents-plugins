@@ -1,6 +1,6 @@
 {
   "name": "@openma/dsh-agents-plugins-bridge-theme",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Client theme registration target for foreign agent plugin themes",
   "license": "MIT",
   "publishConfig": {

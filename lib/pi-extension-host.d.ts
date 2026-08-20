@@ -16,4 +16,5 @@ export declare function mountPiExtensionForAgent(ctx: Context, agent: Agent, raw
 export declare const name = "plugin-bridge-pi-extension-host";
 export declare const inject: string[];
 export declare function apply(ctx: Context, config: PiExtensionHostConfig): void;
+export declare function piUiModeForAgent(agent: Agent): 'tui' | 'rpc';
 //# sourceMappingURL=pi-extension-host.d.ts.map
