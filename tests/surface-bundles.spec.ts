@@ -24,9 +24,13 @@ test('root package is the one-install bundle while its Web surface stays adaptiv
     bundledDependencies?: string[]
     dependencies?: Record<string, string>
     publishConfig?: { access?: string }
+    version?: string
   }
-  assert.equal(manifest.dependencies?.['@openma/dsh-agents-plugins-bridge-ui'], '0.0.4')
-  assert.equal(manifest.dependencies?.['@openma/dsh-mcp-apps'], '0.0.2')
+  const mcpAppsManifest = JSON.parse(
+    await readFile(resolve(root, 'node_modules/@openma/dsh-mcp-apps/package.json'), 'utf8'),
+  ) as { version?: string }
+  assert.equal(manifest.dependencies?.['@openma/dsh-agents-plugins-bridge-ui'], manifest.version)
+  assert.equal(manifest.dependencies?.['@openma/dsh-mcp-apps'], mcpAppsManifest.version)
   assert.equal(manifest.bundledDependencies, undefined)
   assert.equal(manifest.publishConfig?.access, 'public')
 
@@ -35,7 +39,9 @@ test('root package is the one-install bundle while its Web surface stays adaptiv
       dsh?: { bundle?: unknown; client?: unknown }
       private?: boolean
       publishConfig?: { access?: string }
+      version?: string
     }
+    assert.equal(child.version, manifest.version, `${directory} version must match the root bundle`)
     assert.notEqual(child.private, true, `${directory} must remain installable as a runtime dependency`)
     assert.equal(child.publishConfig?.access, 'public')
     assert.equal(child.dsh?.bundle, undefined, `${directory} must not advertise a standalone DSH bundle`)

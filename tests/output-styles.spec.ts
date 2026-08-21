@@ -118,6 +118,7 @@ Start every code explanation with a Mermaid diagram.
   assert.notEqual(selector, undefined)
   assert.deepEqual(await selector!.handler({
     agent,
+    attachments: [],
     commandId: 'select-output-style' as never,
     rawInput: '',
     signal: new AbortController().signal,

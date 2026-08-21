@@ -140,6 +140,7 @@ export default function fixture(pi: any) {
   assert.notEqual(command, undefined)
   const commandResult = await command!.handler({
     agent,
+    attachments: [],
     commandId: 'fixture-command' as never,
     rawInput: ' ping',
     signal: new AbortController().signal,
@@ -153,6 +154,7 @@ export default function fixture(pi: any) {
   assert.notEqual(namespacedGoal, undefined)
   assert.deepEqual(await namespacedGoal!.handler({
     agent,
+    attachments: [],
     commandId: 'fixture-goal-command' as never,
     rawInput: '',
     signal: new AbortController().signal,
@@ -252,6 +254,7 @@ export default function fixture(pi: any) {
   assert.notEqual(command, undefined, ctx.logger.buffer.map(message => message.args.join(' ')).join('\n'))
   assert.deepEqual(await command!.handler({
     agent,
+    attachments: [],
     commandId: 'telegram-status-cold-start' as never,
     rawInput: '',
     signal: new AbortController().signal,

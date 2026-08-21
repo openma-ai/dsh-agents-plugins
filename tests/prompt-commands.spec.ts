@@ -59,6 +59,7 @@ Create $1 with $@. Remaining: \${@:2}. Count: \${3:-zero}.
   assert.notEqual(definition, undefined)
   const result = await definition!.handler({
     agent,
+    attachments: [],
     commandId: 'test' as never,
     rawInput: ' Button "click handler"',
     signal: new AbortController().signal,
@@ -112,6 +113,7 @@ Review $ARGUMENTS in \${CLAUDE_PLUGIN_ROOT}.
 
   await definition!.handler({
     agent,
+    attachments: [],
     commandId: 'test' as never,
     rawInput: ' src/button.tsx',
     signal: new AbortController().signal,

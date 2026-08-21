@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { cp, lstat, mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import test from 'node:test'
 import { Context } from '@deepseek-ai/cordis'
 import { dshMcpAdapter } from '../src/adapters/dsh-mcp.js'
@@ -199,6 +200,56 @@ test('startup migrates bridge skill roots out of the workspace filesystem sandbo
   }
   assert.equal(persisted.installations[0]?.rows[0]?.config?.bundledSkillDir, skillRoot)
   assert.equal(persisted.installations[0]?.rows[0]?.config?.customSkillDirs, undefined)
+})
+
+test('startup rebinds a persisted Codex App relay to the current bridge installation', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'plugin-bridge-relay-path-migration-'))
+  const storage = join(root, 'state')
+  const staleRelayCli = '/old/development-checkout/lib/codex-host-relay-cli.js'
+  await mkdir(storage, { recursive: true })
+  await writeFile(join(storage, 'state.json'), JSON.stringify({
+    version: 1,
+    marketplaces: [],
+    installations: [{
+      name: 'sites', marketplace: 'import:codex-local-cache', format: 'codex-legacy',
+      root: join(storage, 'plugins', 'imports', 'sites'), enabled: true,
+      rows: [{
+        id: 'plugin-bridge-sites-codex-app-sites',
+        name: '@deepseek-ai/dsh-mcp-client',
+        config: {
+          transport: 'stdio',
+          serverName: 'sites-codex-sites',
+          command: process.execPath,
+          args: [
+            staleRelayCli,
+            '--app-name', 'sites',
+            '--connection-id', 'connector_sites',
+            '--cwd', join(storage, 'plugins', 'imports', 'sites'),
+          ],
+          env: {},
+          cwd: join(storage, 'plugins', 'imports', 'sites'),
+          failOnStartupError: false,
+        },
+      }],
+      activations: [],
+      requirements: [],
+      unsupported: [],
+    }],
+    approvals: [],
+  }))
+  const loader = new MemoryLoader()
+  const manager = new PluginBridgeManager(new PluginBridgeKernel(new Context()), loader, storage)
+
+  await manager.start()
+
+  const expectedRelayCli = fileURLToPath(new URL('../src/codex-host-relay-cli.js', import.meta.url))
+  const restoredArgs = loader.rows.get('plugin-bridge-sites-codex-app-sites')?.config?.args as unknown[]
+  assert.equal(restoredArgs[0], expectedRelayCli)
+  const persisted = JSON.parse(await readFile(join(storage, 'state.json'), 'utf8')) as {
+    installations: Array<{ rows: DshPluginRow[] }>
+  }
+  const persistedArgs = persisted.installations[0]?.rows[0]?.config?.args as unknown[]
+  assert.equal(persistedArgs[0], expectedRelayCli)
 })
 
 test('disable and uninstall remove only rows owned by that installation', async () => {

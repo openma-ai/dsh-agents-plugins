@@ -37,6 +37,7 @@ const CATALOG_PATHS = [
   '.claude-plugin/marketplace.json',
   'marketplace.json',
 ] as const
+const CODEX_HOST_RELAY_CLI = fileURLToPath(new URL('./codex-host-relay-cli.js', import.meta.url))
 const execFileAsync = promisify(execFile)
 
 /** Minimal Loader face used to mount each materialized row independently. */
@@ -166,6 +167,21 @@ function emptyState(): BridgeState {
 }
 
 function normalizePersistedRow(row: DshPluginRow): DshPluginRow {
+  const args = row.config?.args
+  if (row.name === '@deepseek-ai/dsh-mcp-client'
+    && row.id.includes('-codex-app-')
+    && Array.isArray(args)
+    && typeof args[0] === 'string'
+    && basename(args[0]) === 'codex-host-relay-cli.js'
+    && args[0] !== CODEX_HOST_RELAY_CLI) {
+    return {
+      ...row,
+      config: {
+        ...row.config,
+        args: [CODEX_HOST_RELAY_CLI, ...args.slice(1)],
+      },
+    }
+  }
   if (row.name !== '@deepseek-ai/dsh-skill-filesystem') return row
   const current = row.config
   const roots = current?.customSkillDirs

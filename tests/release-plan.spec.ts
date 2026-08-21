@@ -8,21 +8,24 @@ import { createReleasePlan } from '../src/release-plan.js'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
 test('release plan publishes runtime packages before the one-install root', async () => {
-  assert.deepEqual(await createReleasePlan(root, 'v0.0.4'), [
+  const { version } = JSON.parse(await readFile(resolve(root, 'package.json'), 'utf8')) as {
+    version: string
+  }
+  assert.deepEqual(await createReleasePlan(root, `v${version}`), [
     {
       directory: 'packages/theme-adapter',
       name: '@openma/dsh-agents-plugins-bridge-theme',
-      version: '0.0.4',
+      version,
     },
     {
       directory: 'packages/ui',
       name: '@openma/dsh-agents-plugins-bridge-ui',
-      version: '0.0.4',
+      version,
     },
     {
       directory: '.',
       name: '@openma/dsh-agents-plugins-bridge',
-      version: '0.0.4',
+      version,
     },
   ])
 })

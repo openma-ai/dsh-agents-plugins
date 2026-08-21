@@ -1,6 +1,6 @@
 {
   "name": "@openma/dsh-agents-plugins-bridge-theme",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "Client theme registration target for foreign agent plugin themes",
   "license": "MIT",
   "publishConfig": {
@@ -48,11 +48,11 @@
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
-    "@deepseek-ai/dsh-client-ui-theme": ">=0.1.0-rc.6 <1"
+    "@deepseek-ai/dsh-client-ui-theme": ">=0.1.0-rc.6 <1 || >=0.1.1-rc.1 <0.1.1"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
-    "@deepseek-ai/dsh-client-ui-theme": "^0.1.0-rc.7",
+    "@deepseek-ai/dsh-client-ui-theme": "^0.1.1-rc.2",
     "tsdown": "^0.22.2",
     "tsx": "^4.20.0",
     "typescript": "^6.0.3"
