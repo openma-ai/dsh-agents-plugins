@@ -24,7 +24,80 @@ test('the Host gateway exposes independent durable and discovery reads', () => {
     { method: 'importLocal', invocation: { kind: 'direct' } },
     { method: 'installPlugin', invocation: { kind: 'direct' } },
     { method: 'setEnabled', invocation: { kind: 'direct' } },
+    { method: 'piUpdates', invocation: { kind: 'direct' } },
+    { method: 'checkPiUpdates', invocation: { kind: 'direct' } },
+    { method: 'setPiUpdateMode', invocation: { kind: 'direct' } },
+    { method: 'setPiPackageAutoUpdate', invocation: { kind: 'direct' } },
+    { method: 'updatePiPackage', invocation: { kind: 'direct' } },
+    { method: 'updateAllPiPackages', invocation: { kind: 'direct' } },
   ])
+})
+
+test('Pi update Host reads and mutations expose only browser-safe package identities', async () => {
+  const privateSource = 'git:https://secret@example.test/company/private.git'
+  const safeStatus = {
+    mode: 'notify' as const,
+    updates: [{
+      id: 'a'.repeat(32),
+      displayName: 'private',
+      type: 'git' as const,
+      scope: 'user' as const,
+      autoUpdate: true,
+    }],
+    lastCheckedAt: 1_000,
+    nextCheckAt: 2_000,
+  }
+  const calls: string[] = []
+  const ctx = new Context()
+  ctx.provide('pluginBridgeRuntime', {
+    piUpdateStatus: () => safeStatus,
+    checkPiUpdates: async () => { calls.push('check'); return safeStatus },
+    setPiUpdateMode: async (mode: string) => { calls.push(`mode:${mode}`); return safeStatus },
+    setPiPackageAutoUpdate: async (id: string, enabled: boolean) => {
+      calls.push(`auto:${id}:${enabled}`)
+      return safeStatus
+    },
+    updatePiPackage: async (id: string) => { calls.push(`update:${id}`); return safeStatus },
+    updateAllPiPackages: async () => { calls.push('update-all'); return safeStatus },
+  })
+  const gateway = new AgentPluginsGateway(ctx)
+
+  assert.deepEqual(gateway.piUpdates(), safeStatus)
+  await gateway.checkPiUpdates()
+  await gateway.setPiUpdateMode('auto')
+  await gateway.setPiPackageAutoUpdate('a'.repeat(32), false)
+  await gateway.updatePiPackage('a'.repeat(32))
+  await gateway.updateAllPiPackages()
+
+  assert.deepEqual(calls, [
+    'check',
+    'mode:auto',
+    `auto:${'a'.repeat(32)}:false`,
+    `update:${'a'.repeat(32)}`,
+    'update-all',
+  ])
+  assert.doesNotMatch(JSON.stringify([
+    gateway.piUpdates(),
+    await gateway.checkPiUpdates(),
+  ]), new RegExp(privateSource.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&'), 'u'))
+})
+
+test('Pi native failures retain private details only in Host logs', async () => {
+  const warnings: string[] = []
+  const ctx = new Context()
+  ctx.logger.warn = (message: unknown) => { warnings.push(String(message)) }
+  ctx.provide('pluginBridgeRuntime', {
+    updatePiPackage: async () => {
+      throw new Error('git fetch https://secret@example.test/private.git failed')
+    },
+  })
+  const gateway = new AgentPluginsGateway(ctx)
+
+  await assert.rejects(
+    () => gateway.updatePiPackage('a'.repeat(32)),
+    (error: unknown) => error instanceof Error && error.message === 'Pi package operation failed; check Host logs',
+  )
+  assert.match(warnings.join('\n'), /secret@example\.test/u)
 })
 
 test('snapshot projects durable state without exposing row configuration or filesystem roots', () => {

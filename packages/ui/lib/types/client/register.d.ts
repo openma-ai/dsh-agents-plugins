@@ -1,4 +1,4 @@
-import type { PluginBridgeRemoteApi } from '../types.ts';
+import type { PluginBridgePiUpdateMode, PluginBridgeRemoteApi } from '../types.ts';
 import type { PluginBridgeView } from '../types.ts';
 export declare const PLUGIN_BRIDGE_LOCALE = "settings.pluginBridge";
 interface RemoteContribution {
@@ -30,6 +30,11 @@ export interface PluginBridgeSettingsTabInjected {
     readonly importLocal: (ref: string) => Promise<PluginBridgeView>;
     readonly install: (name: string, marketplace: string) => Promise<PluginBridgeView>;
     readonly setEnabled: (name: string, enabled: boolean) => Promise<PluginBridgeView>;
+    readonly checkPiUpdates: () => Promise<PluginBridgeView>;
+    readonly setPiUpdateMode: (mode: PluginBridgePiUpdateMode) => Promise<PluginBridgeView>;
+    readonly setPiPackageAutoUpdate: (id: string, enabled: boolean) => Promise<PluginBridgeView>;
+    readonly updatePiPackage: (id: string) => Promise<PluginBridgeView>;
+    readonly updateAllPiPackages: () => Promise<PluginBridgeView>;
 }
 /** Project the Remote namespace into callback-only component injection. */
 export declare function createPluginBridgeSettingsFace(api: PluginBridgeRemoteApi): PluginBridgeSettingsTabInjected;

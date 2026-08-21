@@ -11,29 +11,33 @@ function unwrap(endpoint, result) {
         return result.value;
     throw new Error(`agentPluginsBridge.${endpoint} failed: ${result.error.code}: ${result.error.message}`);
 }
-/** Load the durable, local-discovery, and marketplace-discovery views together. */
+/** Load the durable, discovery, and Pi update views together. */
 export async function loadPluginBridgeView(api) {
-    const [snapshot, local, marketplaces] = await Promise.all([
+    const [snapshot, local, marketplaces, piUpdates] = await Promise.all([
         api.snapshot(),
         api.discoverLocal(),
         api.discoverMarketplaces(),
+        api.piUpdates(),
     ]);
     return {
         snapshot: unwrap('snapshot', snapshot),
         local: unwrap('discoverLocal', local),
         marketplaces: unwrap('discoverMarketplaces', marketplaces),
+        piUpdates: unwrap('piUpdates', piUpdates),
     };
 }
 /** Refresh foreign discovery while retaining a mutation's authoritative durable snapshot. */
 export async function loadPluginBridgeDiscoveries(api, snapshot) {
-    const [local, marketplaces] = await Promise.all([
+    const [local, marketplaces, piUpdates] = await Promise.all([
         api.discoverLocal(),
         api.discoverMarketplaces(),
+        api.piUpdates(),
     ]);
     return {
         snapshot,
         local: unwrap('discoverLocal', local),
         marketplaces: unwrap('discoverMarketplaces', marketplaces),
+        piUpdates: unwrap('piUpdates', piUpdates),
     };
 }
 /** Unwrap one mutation response using its Host endpoint name. */

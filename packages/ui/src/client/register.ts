@@ -1,4 +1,4 @@
-import type { PluginBridgeRemoteApi } from '../types.ts'
+import type { PluginBridgePiUpdateMode, PluginBridgeRemoteApi } from '../types.ts'
 import type { PluginBridgeView } from '../types.ts'
 import {
   loadPluginBridgeDiscoveries,
@@ -40,6 +40,11 @@ export interface PluginBridgeSettingsTabInjected {
   readonly importLocal: (ref: string) => Promise<PluginBridgeView>
   readonly install: (name: string, marketplace: string) => Promise<PluginBridgeView>
   readonly setEnabled: (name: string, enabled: boolean) => Promise<PluginBridgeView>
+  readonly checkPiUpdates: () => Promise<PluginBridgeView>
+  readonly setPiUpdateMode: (mode: PluginBridgePiUpdateMode) => Promise<PluginBridgeView>
+  readonly setPiPackageAutoUpdate: (id: string, enabled: boolean) => Promise<PluginBridgeView>
+  readonly updatePiPackage: (id: string) => Promise<PluginBridgeView>
+  readonly updateAllPiPackages: () => Promise<PluginBridgeView>
 }
 
 /** Project the Remote namespace into callback-only component injection. */
@@ -51,6 +56,13 @@ export function createPluginBridgeSettingsFace(api: PluginBridgeRemoteApi): Plug
   ): Promise<PluginBridgeView> => {
     const snapshot = unwrapPluginBridgeMutation(endpoint, await operation())
     return await loadPluginBridgeDiscoveries(api, snapshot)
+  }
+  const mutatePi = async <T>(
+    endpoint: string,
+    operation: () => Promise<import('../types.ts').PluginBridgeRemoteResult<T>>,
+  ): Promise<PluginBridgeView> => {
+    unwrapPluginBridgeMutation(endpoint, await operation())
+    return load()
   }
   return {
     load,
@@ -64,6 +76,14 @@ export function createPluginBridgeSettingsFace(api: PluginBridgeRemoteApi): Plug
       return await loadPluginBridgeDiscoveries(api, result.snapshot)
     },
     setEnabled: (name, enabled) => mutate('setEnabled', () => api.setEnabled(name, enabled)),
+    checkPiUpdates: () => mutatePi('checkPiUpdates', () => api.checkPiUpdates()),
+    setPiUpdateMode: mode => mutatePi('setPiUpdateMode', () => api.setPiUpdateMode(mode)),
+    setPiPackageAutoUpdate: (id, enabled) => mutatePi(
+      'setPiPackageAutoUpdate',
+      () => api.setPiPackageAutoUpdate(id, enabled),
+    ),
+    updatePiPackage: id => mutatePi('updatePiPackage', () => api.updatePiPackage(id)),
+    updateAllPiPackages: () => mutatePi('updateAllPiPackages', () => api.updateAllPiPackages()),
   }
 }
 

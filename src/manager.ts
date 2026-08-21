@@ -14,6 +14,7 @@ import {
 import { basename, dirname, join, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
+import { compare as compareSemver, valid as validSemver } from 'semver'
 import type {
   ActivationInspection,
   ActivationRequirement,
@@ -100,7 +101,30 @@ export interface InstalledPlugin {
   readonly requirements: readonly RuntimeRequirement[]
   readonly unsupported: readonly PackageComponent[]
   readonly diagnostics?: readonly string[]
+  readonly source?: ImportedPluginSource
   readonly enabled: boolean
+}
+
+/** Durable identity of a foreign plugin snapshot that can be reconciled later. */
+export interface ImportedPluginSource {
+  readonly locator: string
+  readonly key: string
+  readonly ref: string
+  readonly version?: string
+  readonly marketplace?: string
+  readonly upstreamSource?: string
+  readonly digest: string
+  readonly dataRoot: string
+}
+
+/** Observable outcome of one best-effort imported-plugin reconciliation pass. */
+export interface PluginAutoUpdateReport {
+  readonly updated: readonly {
+    readonly name: string
+    readonly fromVersion?: string
+    readonly toVersion?: string
+  }[]
+  readonly diagnostics: readonly string[]
 }
 
 /** Durable user trust for one exact row definition digest. */
@@ -146,6 +170,7 @@ export interface PluginBridgeManagement {
   install(spec: string): Promise<InstalledPlugin>
   discoverLocalPlugins(): Promise<LocalPluginDiscovery>
   importLocalPlugin(ref: string): Promise<InstalledPlugin>
+  syncImportedPlugins(): Promise<PluginAutoUpdateReport>
   discoverRegisteredMarketplaces(): Promise<RegisteredMarketplaceDiscovery>
   importRegisteredMarketplace(ref: string): Promise<RegisteredMarketplace>
   reviewActivations(policy: string, plugin?: string): Promise<readonly ActivationReview[]>
@@ -307,6 +332,36 @@ async function rejectSymlinks(root: string, current = root): Promise<void> {
     }
     if (stats.isDirectory()) await rejectSymlinks(root, path)
   }
+}
+
+async function updateDirectoryDigest(
+  root: string,
+  current: string,
+  hash: ReturnType<typeof createHash>,
+): Promise<void> {
+  for (const entry of await readdir(current, { withFileTypes: true }).then(entries => (
+    entries.filter(item => item.name !== '.git').sort((left, right) => compareCodePoints(left.name, right.name))
+  ))) {
+    const path = join(current, entry.name)
+    const relativePath = path.slice(root.length + 1)
+    hash.update(entry.isDirectory() ? `d\0${relativePath}\0` : `f\0${relativePath}\0`)
+    if (entry.isDirectory()) await updateDirectoryDigest(root, path, hash)
+    else hash.update(await readFile(path))
+  }
+}
+
+async function directoryDigest(root: string): Promise<string> {
+  const hash = createHash('sha256')
+  await updateDirectoryDigest(root, root, hash)
+  return hash.digest('hex')
+}
+
+function comparePluginVersions(left: string, right: string): number {
+  const leftSemver = validSemver(left)
+  const rightSemver = validSemver(right)
+  if (leftSemver !== null && rightSemver !== null) return compareSemver(leftSemver, rightSemver)
+  const collator = new Intl.Collator('en', { numeric: true, sensitivity: 'base' })
+  return collator.compare(left, right)
 }
 
 /** Owns marketplace state, package copies, Loader transactions, and restart restoration. */
@@ -559,6 +614,16 @@ export class PluginBridgeManager {
         requirements: structuredClone(materialized.requirements),
         unsupported: structuredClone(materialized.unsupported),
         ...combinedDiagnostics.length === 0 ? {} : { diagnostics: structuredClone(combinedDiagnostics) },
+        source: {
+          locator: candidate.locator,
+          key: candidate.key,
+          ref: candidate.ref,
+          ...candidate.version === undefined ? {} : { version: candidate.version },
+          ...candidate.marketplace === undefined ? {} : { marketplace: candidate.marketplace },
+          ...candidate.upstreamSource === undefined ? {} : { upstreamSource: candidate.upstreamSource },
+          digest: await directoryDigest(destination),
+          dataRoot: pluginDataRoot,
+        },
         enabled: true,
       }
       this.state.installations.push(installation)
@@ -583,6 +648,101 @@ export class PluginBridgeManager {
       }
       throw error
     }
+  }
+
+  /** Reconcile imported snapshots from each host's own installed-package lifecycle. */
+  async syncImportedPlugins(): Promise<PluginAutoUpdateReport> {
+    await this.ensureStarted()
+    const discovery = await this.discoverLocalPlugins()
+    const updated: Array<{ name: string; fromVersion?: string; toVersion?: string }> = []
+    const diagnostics = [...discovery.diagnostics]
+    for (let index = 0; index < this.state.installations.length; index += 1) {
+      const current = this.state.installations[index]
+      if (current === undefined) continue
+      const locator = current.source?.locator ?? current.marketplace.replace(/^import:/u, '')
+      if (current.marketplace !== `import:${locator}`) continue
+      let candidates = discovery.candidates.filter(candidate => (
+        candidate.locator === locator
+        && candidate.name === current.name
+      ))
+      let candidate: DiscoveredLocalPlugin | undefined
+      let followsInstalledRegistry = false
+      if (locator === 'codex-local-cache') {
+        candidates = candidates.filter(candidate => candidate.version !== undefined)
+        const marketplace = current.source?.marketplace
+        if (marketplace !== undefined) {
+          candidates = candidates.filter(candidate => candidate.marketplace === marketplace)
+        } else {
+          const marketplaces = new Set(candidates.map(candidate => candidate.marketplace ?? ''))
+          if (marketplaces.size > 1) {
+            diagnostics.push(`${current.name}: cannot auto-update because multiple Codex marketplaces contain it`)
+            continue
+          }
+        }
+        candidate = candidates.sort((left, right) => (
+          comparePluginVersions(left.version!, right.version!)
+        )).at(-1)
+      } else if (locator === 'claude-code-installed' || /^pi-installed-(?:user|project)$/u.test(locator)) {
+        followsInstalledRegistry = true
+        if (current.source !== undefined) {
+          candidates = candidates.filter(candidate => candidate.key === current.source!.key)
+        }
+        if (locator.startsWith('pi-installed-')) {
+          candidates = candidates.filter(candidate => candidate.key.split('/')[1] !== 'local')
+        }
+        if (candidates.length > 1) {
+          diagnostics.push(`${current.name}: cannot auto-update because its installed registry identity is ambiguous`)
+          continue
+        }
+        candidate = candidates[0]
+      } else {
+        continue
+      }
+      if (candidate === undefined) continue
+      const fromVersion = current.source?.version
+      try {
+        await rejectSymlinks(candidate.root)
+        const candidateDigest = await directoryDigest(candidate.root)
+        const currentDigest = current.source?.digest ?? await directoryDigest(current.root)
+        const versionsMatch = candidate.version === current.source?.version
+        if (!followsInstalledRegistry
+          && current.source?.version !== undefined
+          && candidate.version !== undefined
+          && comparePluginVersions(candidate.version, current.source.version) < 0) continue
+        if (versionsMatch && candidateDigest === currentDigest) {
+          if (current.source === undefined
+            || (current.source.upstreamSource === undefined && candidate.upstreamSource !== undefined)) {
+            const dataRoot = this.importedPluginDataRoot(current, candidate)
+            this.state.installations[index] = {
+              ...current,
+              source: {
+                locator: candidate.locator,
+                key: candidate.key,
+                ref: candidate.ref,
+                ...candidate.version === undefined ? {} : { version: candidate.version },
+                ...candidate.marketplace === undefined ? {} : { marketplace: candidate.marketplace },
+                ...candidate.upstreamSource === undefined ? {} : { upstreamSource: candidate.upstreamSource },
+                digest: candidateDigest,
+                dataRoot,
+              },
+            }
+            await this.writeState()
+          }
+          continue
+        }
+        await this.replaceImportedPlugin(index, candidate, candidateDigest)
+        updated.push({
+          name: current.name,
+          ...fromVersion === undefined ? {} : { fromVersion },
+          ...candidate.version === undefined ? {} : { toVersion: candidate.version },
+        })
+      } catch (error: unknown) {
+        diagnostics.push(
+          `${current.name}: auto-update to ${candidate.version} failed: ${error instanceof Error ? error.message : String(error)}`,
+        )
+      }
+    }
+    return { updated, diagnostics }
   }
 
   /** Restore the exact stored row plans before accepting management commands. */
@@ -1071,6 +1231,145 @@ export class PluginBridgeManager {
   /** Cordis Loader owns and normalizes the options object it receives. */
   private createRow(row: DshPluginRow): Promise<string> {
     return this.loader.create(structuredClone(row))
+  }
+
+  private importedPluginDataRoot(
+    installation: InstalledPlugin,
+    candidate: DiscoveredLocalPlugin,
+  ): string {
+    if (installation.source?.dataRoot !== undefined) return installation.source.dataRoot
+    for (const row of installation.rows) {
+      const pluginData = (row.config?.env as Record<string, unknown> | undefined)?.PLUGIN_DATA
+      if (typeof pluginData === 'string') return pluginData
+    }
+    const identity = `${candidate.locator}\0${candidate.marketplace ?? ''}\0${candidate.name}`
+    const digest = createHash('sha256').update(identity).digest('hex').slice(0, 16)
+    return join(this.storageDir, 'data', 'imports', digest)
+  }
+
+  private async replaceImportedPlugin(
+    index: number,
+    candidate: DiscoveredLocalPlugin,
+    digest: string,
+  ): Promise<void> {
+    const current = this.state.installations[index]
+    if (current === undefined) throw new Error('cannot update a missing installation')
+    const previousApprovals = structuredClone(this.state.approvals)
+    const dataRoot = this.importedPluginDataRoot(current, candidate)
+    const stage = `${current.root}.update-stage-${randomUUID()}`
+    const backup = `${current.root}.update-backup-${randomUUID()}`
+    const removed: DshPluginRow[] = []
+    const created: string[] = []
+    let oldMoved = false
+    let newPromoted = false
+    try {
+      await cp(candidate.root, stage, {
+        recursive: true,
+        errorOnExist: true,
+        filter: path => basename(path) !== '.git',
+      })
+      await rejectSymlinks(stage)
+      await mkdir(dataRoot, { recursive: true, mode: 0o700 })
+      const stagedSource = new DirectoryPackageSource(stage)
+      const stagedFormat = this.kernel.detectPackageFormat(stagedSource)
+      const staged = this.kernel.materializePackage(stagedSource, stagedFormat, { pluginDataRoot: dataRoot })
+      if (staged.rows.length === 0 && staged.requirements.length === 0) {
+        throw new Error(`plugin "${candidate.name}" has no components supported by the active dsh bridge`)
+      }
+
+      if (current.enabled) {
+        for (const row of [...current.rows].reverse()) {
+          if (!this.activeRowIds.includes(row.id)) continue
+          await this.loader.remove(row.id)
+          removed.push(row)
+          const activeIndex = this.activeRowIds.indexOf(row.id)
+          if (activeIndex >= 0) this.activeRowIds.splice(activeIndex, 1)
+        }
+      }
+      await rename(current.root, backup)
+      oldMoved = true
+      await rename(stage, current.root)
+      newPromoted = true
+
+      const packageSource = new DirectoryPackageSource(current.root)
+      const detected = this.kernel.detectPackageFormat(packageSource)
+      const materialized = this.kernel.materializePackage(packageSource, detected, { pluginDataRoot: dataRoot })
+      if (materialized.rows.length === 0 && materialized.requirements.length === 0) {
+        throw new Error(`plugin "${candidate.name}" has no components supported by the active dsh bridge`)
+      }
+      const nextInstallation: InstalledPlugin = {
+        name: current.name,
+        marketplace: current.marketplace,
+        format: detected.provider,
+        root: current.root,
+        rows: structuredClone(materialized.rows),
+        activations: structuredClone(materialized.activations),
+        requirements: structuredClone(materialized.requirements),
+        unsupported: structuredClone(materialized.unsupported),
+        ...materialized.diagnostics === undefined
+          ? {}
+          : { diagnostics: structuredClone(materialized.diagnostics) },
+        source: {
+          locator: candidate.locator,
+          key: candidate.key,
+          ref: candidate.ref,
+          ...candidate.version === undefined ? {} : { version: candidate.version },
+          ...candidate.marketplace === undefined ? {} : { marketplace: candidate.marketplace },
+          ...candidate.upstreamSource === undefined ? {} : { upstreamSource: candidate.upstreamSource },
+          digest,
+          dataRoot,
+        },
+        enabled: current.enabled,
+      }
+      const ownedRows = new Set(current.rows.map(row => row.id))
+      const validApprovals = new Set(nextInstallation.activations.map(requirement => (
+        `${requirement.policy}\0${requirement.rowId}\0${requirement.digest}`
+      )))
+      const nextApprovals = previousApprovals.filter(approval => (
+        !ownedRows.has(approval.rowId)
+        || validApprovals.has(`${approval.policy}\0${approval.rowId}\0${approval.digest}`)
+      ))
+      if (nextInstallation.enabled) {
+        for (const row of this.rowsAllowedByPolicyWithApprovals(
+          nextInstallation.rows,
+          nextInstallation.activations,
+          nextApprovals,
+        )) {
+          try {
+            await this.createRow(row)
+            created.push(row.id)
+          } catch (error: unknown) {
+            try { await this.loader.remove(row.id) } catch { /* failed Loader create owns its rollback */ }
+            throw error
+          }
+        }
+      }
+      this.state.installations[index] = nextInstallation
+      this.state.approvals.splice(0, this.state.approvals.length, ...nextApprovals)
+      await this.writeState()
+      this.activeRowIds.push(...created)
+      try { await this.moveToTrash(backup) } catch { /* the active replacement is already durable */ }
+    } catch (error: unknown) {
+      this.state.installations[index] = current
+      this.state.approvals.splice(0, this.state.approvals.length, ...previousApprovals)
+      await this.removeRows(created)
+      if (newPromoted) await this.moveToTrash(current.root)
+      else await rm(stage, { recursive: true, force: true })
+      if (oldMoved) await rename(backup, current.root)
+      const rollbackFailures: unknown[] = []
+      for (const row of [...removed].reverse()) {
+        try {
+          await this.createRow(row)
+          this.activeRowIds.push(row.id)
+        } catch (rollbackError: unknown) {
+          rollbackFailures.push(rollbackError)
+        }
+      }
+      if (rollbackFailures.length > 0) {
+        throw new AggregateError([error, ...rollbackFailures], `failed to roll back plugin "${current.name}" update`)
+      }
+      throw error
+    }
   }
 
   private async acquireSource(

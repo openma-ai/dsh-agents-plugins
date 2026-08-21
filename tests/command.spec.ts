@@ -104,6 +104,7 @@ test('/plugin-bridge discover groups readable import actions without exposing lo
       }
     },
     async importLocalPlugin() { throw new Error('unexpected importLocalPlugin call') },
+    async syncImportedPlugins() { return { updated: [], diagnostics: [] } },
     async discoverRegisteredMarketplaces() {
       throw new Error('unexpected discoverRegisteredMarketplaces call')
     },
@@ -174,6 +175,7 @@ test('/plugin-bridge management commands call the one runtime manager', async ()
         unsupported: [], enabled: true,
       }
     },
+    async syncImportedPlugins() { return { updated: [], diagnostics: [] } },
     async discoverRegisteredMarketplaces() {
       calls.push('marketplace-discover')
       return {

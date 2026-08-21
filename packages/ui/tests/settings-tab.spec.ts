@@ -36,7 +36,7 @@ test('the settings tab loads exclusively through its callback injection face', a
 
   await act(async () => { resolveLoad?.(empty) })
 
-  assert.equal(renderer!.root.findAll(node => node.type === 'section').length, 4)
+  assert.equal(renderer!.root.findAll(node => node.type === 'section').length, 5)
   assert.equal(renderer!.root.findAllByProps({ 'data-state': 'loading' }).length, 0)
 })
 
@@ -70,7 +70,7 @@ test('a failed initial load exposes a localized retry and recovers', async () =>
   assert.equal(renderer!.root.findByProps({ role: 'alert' }).children.join(''), 'loadError')
   await act(async () => { renderer!.root.findByProps({ 'data-action': 'retry' }).props.onClick() })
   assert.equal(attempts, 2)
-  assert.equal(renderer!.root.findAll(node => node.type === 'section').length, 4)
+  assert.equal(renderer!.root.findAll(node => node.type === 'section').length, 5)
 })
 
 test('a mutation failure stays beside its action and hides transport details', async () => {
@@ -105,7 +105,7 @@ test('a mutation failure stays beside its action and hides transport details', a
   const alert = renderer!.root.findByProps({ 'data-operation-error': 'setEnabled:demo' }).children.join('')
   assert.equal(alert, 'mutationError')
   assert.doesNotMatch(alert, /TOKEN|must-not-render/u)
-  assert.equal(renderer!.root.findAll(node => node.type === 'section').length, 4)
+  assert.equal(renderer!.root.findAll(node => node.type === 'section').length, 5)
 })
 
 test('a failed marketplace add preserves the entered location', async () => {

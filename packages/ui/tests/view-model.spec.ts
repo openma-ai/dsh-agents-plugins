@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-test('loadPluginBridgeView unwraps all three Host reads as one settings snapshot', async () => {
+test('loadPluginBridgeView unwraps all Host reads as one settings snapshot', async () => {
   const client = await import('../src/client/view-model.js').catch(() => undefined)
   assert.equal(typeof client?.loadPluginBridgeView, 'function')
 
@@ -19,16 +19,19 @@ test('loadPluginBridgeView unwraps all three Host reads as one settings snapshot
     diagnostics: [],
   }
   const marketplaces = { candidates: [], diagnostics: ['one catalog is malformed'] }
+  const piUpdates = { mode: 'notify' as const, updates: [] }
   const api = {
     snapshot: async () => ({ ok: true as const, value: snapshot }),
     discoverLocal: async () => ({ ok: true as const, value: local }),
     discoverMarketplaces: async () => ({ ok: true as const, value: marketplaces }),
+    piUpdates: async () => ({ ok: true as const, value: piUpdates }),
   }
 
   assert.deepEqual(await client?.loadPluginBridgeView(api as never), {
     snapshot,
     local,
     marketplaces,
+    piUpdates,
   })
 })
 
@@ -42,6 +45,7 @@ test('loadPluginBridgeView reports the exact failed Remote endpoint', async () =
       error: { code: 'INTERNAL', message: 'locator failed' },
     }),
     discoverMarketplaces: async () => ({ ok: true as const, value: { candidates: [], diagnostics: [] } }),
+    piUpdates: async () => ({ ok: true as const, value: { mode: 'notify', updates: [] } }),
   }
 
   await assert.rejects(

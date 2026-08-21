@@ -9,6 +9,12 @@ const members = [
   ['importLocal', 'importLocal(ref: string): Promise<AgentPluginsSnapshot>'],
   ['installPlugin', 'installPlugin(name: string, marketplace: string): Promise<AgentPluginsInstallResult>'],
   ['setEnabled', 'setEnabled(name: string, enabled: boolean): Promise<AgentPluginsSnapshot>'],
+  ['piUpdates', 'piUpdates(): AgentPluginsPiUpdateStatus'],
+  ['checkPiUpdates', 'checkPiUpdates(): Promise<AgentPluginsPiUpdateStatus>'],
+  ['setPiUpdateMode', 'setPiUpdateMode(mode: AgentPluginsPiUpdateMode): Promise<AgentPluginsPiUpdateStatus>'],
+  ['setPiPackageAutoUpdate', 'setPiPackageAutoUpdate(id: string, enabled: boolean): Promise<AgentPluginsPiUpdateStatus>'],
+  ['updatePiPackage', 'updatePiPackage(id: string): Promise<AgentPluginsPiUpdateStatus>'],
+  ['updateAllPiPackages', 'updateAllPiPackages(): Promise<AgentPluginsPiUpdateStatus>'],
 ] as const
 
 /** Host face consumed automatically by DSH's typert-loader. */

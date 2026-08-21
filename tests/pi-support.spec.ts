@@ -267,6 +267,7 @@ test('Pi locator resolves npm, git, and local settings entries while isolating b
       evidence: 'installed-registry',
       version: '2.3.4',
       scope: 'user',
+      upstreamSource: 'npm:@scope/npm-pi@2.3.4',
     },
     {
       key: 'user/git/github.com%2Fopenma-ai%2Fgit-pi',
@@ -274,6 +275,7 @@ test('Pi locator resolves npm, git, and local settings entries while isolating b
       root: await realpath(gitPackage),
       evidence: 'installed-registry',
       scope: 'user',
+      upstreamSource: 'git:github.com/openma-ai/git-pi@v1',
     },
   ])
   const local = observation.candidates[2]

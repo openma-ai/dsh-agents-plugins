@@ -46,7 +46,28 @@ export interface InstalledPlugin {
     readonly requirements: readonly RuntimeRequirement[];
     readonly unsupported: readonly PackageComponent[];
     readonly diagnostics?: readonly string[];
+    readonly source?: ImportedPluginSource;
     readonly enabled: boolean;
+}
+/** Durable identity of a foreign plugin snapshot that can be reconciled later. */
+export interface ImportedPluginSource {
+    readonly locator: string;
+    readonly key: string;
+    readonly ref: string;
+    readonly version?: string;
+    readonly marketplace?: string;
+    readonly upstreamSource?: string;
+    readonly digest: string;
+    readonly dataRoot: string;
+}
+/** Observable outcome of one best-effort imported-plugin reconciliation pass. */
+export interface PluginAutoUpdateReport {
+    readonly updated: readonly {
+        readonly name: string;
+        readonly fromVersion?: string;
+        readonly toVersion?: string;
+    }[];
+    readonly diagnostics: readonly string[];
 }
 /** Durable user trust for one exact row definition digest. */
 export interface ActivationApproval {
@@ -85,6 +106,7 @@ export interface PluginBridgeManagement {
     install(spec: string): Promise<InstalledPlugin>;
     discoverLocalPlugins(): Promise<LocalPluginDiscovery>;
     importLocalPlugin(ref: string): Promise<InstalledPlugin>;
+    syncImportedPlugins(): Promise<PluginAutoUpdateReport>;
     discoverRegisteredMarketplaces(): Promise<RegisteredMarketplaceDiscovery>;
     importRegisteredMarketplace(ref: string): Promise<RegisteredMarketplace>;
     reviewActivations(policy: string, plugin?: string): Promise<readonly ActivationReview[]>;
@@ -113,6 +135,8 @@ export declare class PluginBridgeManager {
     importRegisteredMarketplace(ref: string): Promise<RegisteredMarketplace>;
     /** Copy one explicitly selected foreign package, then activate only its copied row plan. */
     importLocalPlugin(ref: string): Promise<InstalledPlugin>;
+    /** Reconcile imported snapshots from each host's own installed-package lifecycle. */
+    syncImportedPlugins(): Promise<PluginAutoUpdateReport>;
     /** Restore the exact stored row plans before accepting management commands. */
     start(): Promise<void>;
     /** Register one local Codex or Claude marketplace directory. */
@@ -139,6 +163,8 @@ export declare class PluginBridgeManager {
     private rowsAllowedByPolicyWithApprovals;
     /** Cordis Loader owns and normalizes the options object it receives. */
     private createRow;
+    private importedPluginDataRoot;
+    private replaceImportedPlugin;
     private acquireSource;
     private removeRows;
     private statePath;

@@ -16,7 +16,10 @@
 .heading,
 .row,
 .actions,
-.add {
+.add,
+.updateControls,
+.policy,
+.checkboxLabel {
   display: flex;
   align-items: center;
 }
@@ -289,6 +292,39 @@
 
 .add {
   gap: 8px;
+}
+
+.updateControls {
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.policy,
+.checkboxLabel {
+  gap: 7px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.select {
+  min-height: 30px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 7px;
+  padding: 0 8px;
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+}
+
+.select:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 1px;
+}
+
+.checkboxLabel input {
+  margin: 0;
 }
 
 .input {

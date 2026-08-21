@@ -31,7 +31,7 @@ test('the browser entry mounts its own Remote before contributing UI', async () 
 
   const dispose = await client?.apply(ctx as never)
 
-  assert.deepEqual(events, ['mount:8', 'remote:inject', 'locale', 'inject', 'register'])
+  assert.deepEqual(events, ['mount:14', 'remote:inject', 'locale', 'inject', 'register'])
   await dispose?.()
   assert.equal(events.at(-1), 'dispose')
 })

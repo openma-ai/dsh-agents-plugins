@@ -2,7 +2,7 @@ import { createElement } from 'react'
 import TestRenderer, { act } from 'react-test-renderer'
 import { expect, it } from 'vitest'
 
-it('the bridge panel renders four real capability sections and wires every action', async () => {
+it('the bridge panel renders all capability sections and wires every action', async () => {
   const ui = await import('../src/client/PluginBridgeContent.js')
   expect(typeof ui.PluginBridgeContent).toBe('function')
   const calls: string[] = []
@@ -47,6 +47,18 @@ it('the bridge panel renders four real capability sections and wires every actio
       }],
       diagnostics: [],
     },
+    piUpdates: {
+      mode: 'notify' as const,
+      updates: [{
+        id: 'a'.repeat(32),
+        displayName: 'pi-demo',
+        type: 'npm' as const,
+        scope: 'user' as const,
+        autoUpdate: true,
+      }],
+      lastCheckedAt: 1_000,
+      nextCheckAt: 2_000,
+    },
   }
   const props = {
     view,
@@ -60,6 +72,13 @@ it('the bridge panel renders four real capability sections and wires every actio
     onImportLocal: async (ref: string) => { calls.push(`importLocal:${ref}`) },
     onInstall: async (name: string, marketplace: string) => { calls.push(`install:${name}@${marketplace}`) },
     onSetEnabled: async (name: string, enabled: boolean) => { calls.push(`enabled:${name}:${String(enabled)}`) },
+    onCheckPiUpdates: async () => { calls.push('checkPiUpdates') },
+    onSetPiUpdateMode: async (mode: string) => { calls.push(`piMode:${mode}`) },
+    onSetPiPackageAutoUpdate: async (id: string, enabled: boolean) => {
+      calls.push(`piAuto:${id}:${String(enabled)}`)
+    },
+    onUpdatePiPackage: async (id: string) => { calls.push(`piUpdate:${id}`) },
+    onUpdateAllPiPackages: async () => { calls.push('piUpdateAll') },
   }
 
   let renderer: TestRenderer.ReactTestRenderer
@@ -69,7 +88,7 @@ it('the bridge panel renders four real capability sections and wires every actio
   const root = renderer!.root
   expect(
     root.findAll(node => node.type === 'section').map(node => node.props['data-section']),
-  ).toEqual(['installed', 'configured-marketplaces', 'discovered-marketplaces', 'discovered-local'])
+  ).toEqual(['pi-updates', 'installed', 'configured-marketplaces', 'discovered-marketplaces', 'discovered-local'])
   const rendered = JSON.stringify(renderer!.toJSON())
   for (const detail of ['enabled', 'protected', 'unsupported', 'main', 'personal', 'user']) {
     expect(rendered).toContain(detail)
@@ -87,6 +106,15 @@ it('the bridge panel renders four real capability sections and wires every actio
     await root.findByProps({ 'data-action': 'import-marketplace' }).props.onClick()
     await root.findByProps({ 'data-action': 'import-local' }).props.onClick()
     await root.findByProps({ 'data-action': 'add-marketplace' }).props.onClick()
+    await root.findByProps({ 'data-action': 'check-pi-updates' }).props.onClick()
+    await root.findByProps({ 'data-action': 'update-pi-package' }).props.onClick()
+    await root.findByProps({ 'data-action': 'update-all-pi-packages' }).props.onClick()
+    await root.findByProps({ 'data-action': 'set-pi-update-mode' }).props.onChange({
+      currentTarget: { value: 'auto' },
+    })
+    await root.findByProps({ 'data-action': 'set-pi-package-auto-update' }).props.onChange({
+      currentTarget: { checked: false },
+    })
   })
 
   expect(calls).toEqual([
@@ -96,6 +124,11 @@ it('the bridge panel renders four real capability sections and wires every actio
     'importMarketplace:claude-code-registered-marketplaces:company',
     'importLocal:codex-local-cache:personal/local-demo/1.0.0',
     'addMarketplace',
+    'checkPiUpdates',
+    `piUpdate:${'a'.repeat(32)}`,
+    'piUpdateAll',
+    'piMode:auto',
+    `piAuto:${'a'.repeat(32)}:false`,
   ])
 })
 

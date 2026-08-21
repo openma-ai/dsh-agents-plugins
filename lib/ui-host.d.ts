@@ -1,5 +1,8 @@
 import type { Context } from '@deepseek-ai/cordis';
 import { TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol';
+import type { PiUpdateMode, PiUpdateStatus } from './pi-updates.js';
+export type AgentPluginsPiUpdateMode = PiUpdateMode;
+export type AgentPluginsPiUpdateStatus = PiUpdateStatus;
 /** One marketplace shown by the Agent Plugins settings tab. */
 export interface AgentPluginsMarketplaceView {
     readonly name: string;
@@ -66,6 +69,7 @@ export declare class AgentPluginsGateway extends TypertRemoteService {
     private mutationTail;
     constructor(ctx: Context);
     private serializeMutation;
+    private serializePiOperation;
     /** @returns Current Bridge-owned marketplaces and installations. */
     snapshot(): AgentPluginsSnapshot;
     /** @returns Foreign-agent plugin installations currently visible on the Host. */
@@ -82,6 +86,18 @@ export declare class AgentPluginsGateway extends TypertRemoteService {
     installPlugin(name: string, marketplace: string): Promise<AgentPluginsInstallResult>;
     /** Enable or disable one Bridge-owned installation. */
     setEnabled(name: string, enabled: boolean): Promise<AgentPluginsSnapshot>;
+    /** Read Pi's persisted update policy and latest browser-safe check result. */
+    piUpdates(): AgentPluginsPiUpdateStatus;
+    /** Ask Pi's native package manager to check for updates now. */
+    checkPiUpdates(): Promise<AgentPluginsPiUpdateStatus>;
+    /** Change the global Pi update lifecycle policy. */
+    setPiUpdateMode(mode: AgentPluginsPiUpdateMode): Promise<AgentPluginsPiUpdateStatus>;
+    /** Include or exclude one Pi package from automatic updates. */
+    setPiPackageAutoUpdate(id: string, enabled: boolean): Promise<AgentPluginsPiUpdateStatus>;
+    /** Apply one available update with Pi's native package manager. */
+    updatePiPackage(id: string): Promise<AgentPluginsPiUpdateStatus>;
+    /** Apply all currently available imported-package updates with Pi. */
+    updateAllPiPackages(): Promise<AgentPluginsPiUpdateStatus>;
 }
 export default AgentPluginsGateway;
 //# sourceMappingURL=ui-host.d.ts.map

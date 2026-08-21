@@ -7,6 +7,10 @@ export function createPluginBridgeSettingsFace(api) {
         const snapshot = unwrapPluginBridgeMutation(endpoint, await operation());
         return await loadPluginBridgeDiscoveries(api, snapshot);
     };
+    const mutatePi = async (endpoint, operation) => {
+        unwrapPluginBridgeMutation(endpoint, await operation());
+        return load();
+    };
     return {
         load,
         rescan: load,
@@ -20,6 +24,11 @@ export function createPluginBridgeSettingsFace(api) {
             return await loadPluginBridgeDiscoveries(api, result.snapshot);
         },
         setEnabled: (name, enabled) => mutate('setEnabled', () => api.setEnabled(name, enabled)),
+        checkPiUpdates: () => mutatePi('checkPiUpdates', () => api.checkPiUpdates()),
+        setPiUpdateMode: mode => mutatePi('setPiUpdateMode', () => api.setPiUpdateMode(mode)),
+        setPiPackageAutoUpdate: (id, enabled) => mutatePi('setPiPackageAutoUpdate', () => api.setPiPackageAutoUpdate(id, enabled)),
+        updatePiPackage: id => mutatePi('updatePiPackage', () => api.updatePiPackage(id)),
+        updateAllPiPackages: () => mutatePi('updateAllPiPackages', () => api.updateAllPiPackages()),
     };
 }
 /** Mount the external Remote descriptor, then contribute the settings tab. */

@@ -4,6 +4,8 @@ import type {
   AgentPluginsLocalDiscoveryView,
   AgentPluginsInstallResult,
   AgentPluginsMarketplaceDiscoveryView,
+  AgentPluginsPiUpdateMode,
+  AgentPluginsPiUpdateStatus,
   AgentPluginsSnapshot,
 } from './ui-host.js'
 
@@ -20,6 +22,12 @@ export interface AgentPluginsRemoteApi {
   importLocal(ref: string): Promise<RemoteResult<AgentPluginsSnapshot>>
   installPlugin(name: string, marketplace: string): Promise<RemoteResult<AgentPluginsInstallResult>>
   setEnabled(name: string, enabled: boolean): Promise<RemoteResult<AgentPluginsSnapshot>>
+  piUpdates(): Promise<RemoteResult<AgentPluginsPiUpdateStatus>>
+  checkPiUpdates(): Promise<RemoteResult<AgentPluginsPiUpdateStatus>>
+  setPiUpdateMode(mode: AgentPluginsPiUpdateMode): Promise<RemoteResult<AgentPluginsPiUpdateStatus>>
+  setPiPackageAutoUpdate(id: string, enabled: boolean): Promise<RemoteResult<AgentPluginsPiUpdateStatus>>
+  updatePiPackage(id: string): Promise<RemoteResult<AgentPluginsPiUpdateStatus>>
+  updateAllPiPackages(): Promise<RemoteResult<AgentPluginsPiUpdateStatus>>
 }
 
 const marketplaceSchema = z.object({
@@ -78,6 +86,19 @@ const marketplaceDiscoverySchema = z.object({
   diagnostics: z.array(z.string()),
 })
 
+const piUpdateStatusSchema = z.object({
+  mode: z.enum(['notify', 'auto', 'off']),
+  updates: z.array(z.object({
+    id: z.string().regex(/^[a-f0-9]{32}$/u),
+    displayName: z.string(),
+    type: z.enum(['npm', 'git']),
+    scope: z.enum(['user', 'project']),
+    autoUpdate: z.boolean(),
+  })),
+  lastCheckedAt: z.number().finite().optional(),
+  nextCheckAt: z.number().finite().optional(),
+})
+
 const strict = (typeSymbol: string, schema: z.ZodType) => ({
   mode: 'strict' as const,
   typeSymbol,
@@ -124,6 +145,19 @@ export const TYPERT_REMOTE = {
       parameter('setEnabled', 'name', z.string()),
       parameter('setEnabled', 'enabled', z.boolean()),
     ], 'AgentPluginsSnapshot', snapshotSchema),
+    descriptor('piUpdates', [], 'AgentPluginsPiUpdateStatus', piUpdateStatusSchema),
+    descriptor('checkPiUpdates', [], 'AgentPluginsPiUpdateStatus', piUpdateStatusSchema),
+    descriptor('setPiUpdateMode', [
+      parameter('setPiUpdateMode', 'mode', z.enum(['notify', 'auto', 'off'])),
+    ], 'AgentPluginsPiUpdateStatus', piUpdateStatusSchema),
+    descriptor('setPiPackageAutoUpdate', [
+      parameter('setPiPackageAutoUpdate', 'id', z.string().regex(/^[a-f0-9]{32}$/u)),
+      parameter('setPiPackageAutoUpdate', 'enabled', z.boolean()),
+    ], 'AgentPluginsPiUpdateStatus', piUpdateStatusSchema),
+    descriptor('updatePiPackage', [
+      parameter('updatePiPackage', 'id', z.string().regex(/^[a-f0-9]{32}$/u)),
+    ], 'AgentPluginsPiUpdateStatus', piUpdateStatusSchema),
+    descriptor('updateAllPiPackages', [], 'AgentPluginsPiUpdateStatus', piUpdateStatusSchema),
   ],
 } satisfies TypertRemoteContribution
 

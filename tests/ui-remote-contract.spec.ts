@@ -13,6 +13,12 @@ const METHODS = [
   'importLocal',
   'installPlugin',
   'setEnabled',
+  'piUpdates',
+  'checkPiUpdates',
+  'setPiUpdateMode',
+  'setPiPackageAutoUpdate',
+  'updatePiPackage',
+  'updateAllPiPackages',
 ] as const
 
 test('the public Host feature ships the official typert and remote artifacts', async () => {

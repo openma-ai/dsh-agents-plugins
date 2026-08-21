@@ -48,7 +48,8 @@ through its own dependency graph.
 
 Open **Settings → Plugins → Agent plugins** to scan local Codex, Claude Code,
 and Pi state; register or import marketplaces; search catalogs; install a
-plugin; and inspect per-plugin capability rows and diagnostics.
+plugin; inspect per-plugin capability rows and diagnostics; and manage Pi
+package update checks.
 
 ![Agent Plugins management in DSH Web](docs/images/web-agent-plugins.jpg)
 
@@ -267,7 +268,9 @@ The owned command namespace is `/plugin-bridge`:
 /plugin-bridge uninstall <plugin>
 ```
 
-Discovery is always read-only and import is always explicit. Package update is reserved for a transaction that can acquire and validate the replacement before swapping rows; it is not exposed as a partial in-place mutation.
+Discovery is always read-only and the first import is always explicit. Imported host snapshots are reconciled once when the runtime starts and every five minutes by default; set `autoUpdateIntervalMs` to another positive interval or `0` to disable polling. Codex reconciliation follows SemVer precedence across its versioned cache. Claude Code follows the exact active entry in `installed_plugins.json`, including an upstream rollback. Pi local-path packages remain explicit-only. Content digests also detect changes without a new version string. A replacement is copied and validated before its rows are swapped at the existing Bridge-owned root; any acquisition, validation, activation, or persistence failure restores the previous package and active rows.
+
+Pi npm and Git packages additionally use Pi's public native package-manager API. The Web panel defaults to **Notify only**, checks at startup when due and then every six hours, and lists updates only for Pi packages already imported into this Bridge profile. Users can choose **Update automatically** or **Turn off checks**, exclude individual packages from automatic updates, check immediately, and update one package or all available packages. Manual actions ignore automatic-update exclusions. Pins, npm and Git behavior, user/project scope, and package installation layout remain owned by Pi; the Bridge does not implement a second npm or Git updater. Native package sources stay on the Host and the Web client receives only opaque IDs. Set `piUpdateCheckIntervalMs` to another positive interval or `0` to disable background checks; manual checks remain available.
 
 Imported Claude output styles expose their generated selection commands in the normal DSH command registry. Hook rows do not add a second digest-approval gate: importing and enabling the plugin activates the native DSH Codex or Claude Code hook bridge directly.
 

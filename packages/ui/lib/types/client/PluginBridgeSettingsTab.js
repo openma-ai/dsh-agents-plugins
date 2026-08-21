@@ -100,6 +100,16 @@ export function PluginBridgeSettingsTab(props) {
             await run(`install:${marketplace}:${name}`, () => props.install(name, marketplace));
         }, onSetEnabled: async (name, enabled) => {
             await run(`setEnabled:${name}`, () => props.setEnabled(name, enabled));
+        }, onCheckPiUpdates: async () => {
+            await run('checkPiUpdates', props.checkPiUpdates);
+        }, onSetPiUpdateMode: async (mode) => {
+            await run('setPiUpdateMode', () => props.setPiUpdateMode(mode));
+        }, onSetPiPackageAutoUpdate: async (id, enabled) => {
+            await run(`setPiPackageAutoUpdate:${id}`, () => props.setPiPackageAutoUpdate(id, enabled));
+        }, onUpdatePiPackage: async (id) => {
+            await run(`updatePiPackage:${id}`, () => props.updatePiPackage(id));
+        }, onUpdateAllPiPackages: async () => {
+            await run('updateAllPiPackages', props.updateAllPiPackages);
         } }));
 }
 //# sourceMappingURL=PluginBridgeSettingsTab.js.map

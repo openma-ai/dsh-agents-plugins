@@ -70,6 +70,23 @@ export interface PluginBridgeMarketplaceDiscoveryView {
   readonly diagnostics: readonly string[]
 }
 
+export type PluginBridgePiUpdateMode = 'notify' | 'auto' | 'off'
+
+export interface PluginBridgePiPackageUpdateView {
+  readonly id: string
+  readonly displayName: string
+  readonly type: 'npm' | 'git'
+  readonly scope: 'user' | 'project'
+  readonly autoUpdate: boolean
+}
+
+export interface PluginBridgePiUpdateStatus {
+  readonly mode: PluginBridgePiUpdateMode
+  readonly updates: readonly PluginBridgePiPackageUpdateView[]
+  readonly lastCheckedAt?: number
+  readonly nextCheckAt?: number
+}
+
 /** Strict Typert Remote outcome used by the generated bridge descriptor. */
 export type PluginBridgeRemoteResult<T> =
   | { readonly ok: true; readonly value: T }
@@ -88,6 +105,12 @@ export interface PluginBridgeRemoteApi {
   importLocal(ref: string): Promise<PluginBridgeRemoteResult<PluginBridgeSnapshot>>
   installPlugin(name: string, marketplace: string): Promise<PluginBridgeRemoteResult<PluginBridgeInstallResult>>
   setEnabled(name: string, enabled: boolean): Promise<PluginBridgeRemoteResult<PluginBridgeSnapshot>>
+  piUpdates(): Promise<PluginBridgeRemoteResult<PluginBridgePiUpdateStatus>>
+  checkPiUpdates(): Promise<PluginBridgeRemoteResult<PluginBridgePiUpdateStatus>>
+  setPiUpdateMode(mode: PluginBridgePiUpdateMode): Promise<PluginBridgeRemoteResult<PluginBridgePiUpdateStatus>>
+  setPiPackageAutoUpdate(id: string, enabled: boolean): Promise<PluginBridgeRemoteResult<PluginBridgePiUpdateStatus>>
+  updatePiPackage(id: string): Promise<PluginBridgeRemoteResult<PluginBridgePiUpdateStatus>>
+  updateAllPiPackages(): Promise<PluginBridgeRemoteResult<PluginBridgePiUpdateStatus>>
 }
 
 /** Combined model rendered by the Web settings tab. */
@@ -95,4 +118,5 @@ export interface PluginBridgeView {
   readonly snapshot: PluginBridgeSnapshot
   readonly local: PluginBridgeLocalDiscoveryView
   readonly marketplaces: PluginBridgeMarketplaceDiscoveryView
+  readonly piUpdates: PluginBridgePiUpdateStatus
 }

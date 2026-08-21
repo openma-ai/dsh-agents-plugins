@@ -45,6 +45,8 @@ export interface InstalledPluginCandidate {
     readonly version?: string;
     readonly marketplace?: string;
     readonly scope?: string;
+    /** Exact package-manager source, retained Host-side for native lifecycle operations. */
+    readonly upstreamSource?: string;
     readonly enabled?: boolean;
     readonly diagnostics?: readonly string[];
 }

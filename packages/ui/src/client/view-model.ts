@@ -18,17 +18,19 @@ function unwrap<T>(endpoint: string, result: PluginBridgeRemoteResult<T>): T {
   throw new Error(`agentPluginsBridge.${endpoint} failed: ${result.error.code}: ${result.error.message}`)
 }
 
-/** Load the durable, local-discovery, and marketplace-discovery views together. */
+/** Load the durable, discovery, and Pi update views together. */
 export async function loadPluginBridgeView(api: PluginBridgeRemoteApi): Promise<PluginBridgeView> {
-  const [snapshot, local, marketplaces] = await Promise.all([
+  const [snapshot, local, marketplaces, piUpdates] = await Promise.all([
     api.snapshot(),
     api.discoverLocal(),
     api.discoverMarketplaces(),
+    api.piUpdates(),
   ])
   return {
     snapshot: unwrap('snapshot', snapshot),
     local: unwrap('discoverLocal', local),
     marketplaces: unwrap('discoverMarketplaces', marketplaces),
+    piUpdates: unwrap('piUpdates', piUpdates),
   }
 }
 
@@ -37,14 +39,16 @@ export async function loadPluginBridgeDiscoveries(
   api: PluginBridgeRemoteApi,
   snapshot: PluginBridgeSnapshot,
 ): Promise<PluginBridgeView> {
-  const [local, marketplaces] = await Promise.all([
+  const [local, marketplaces, piUpdates] = await Promise.all([
     api.discoverLocal(),
     api.discoverMarketplaces(),
+    api.piUpdates(),
   ])
   return {
     snapshot,
     local: unwrap('discoverLocal', local),
     marketplaces: unwrap('discoverMarketplaces', marketplaces),
+    piUpdates: unwrap('piUpdates', piUpdates),
   }
 }
 

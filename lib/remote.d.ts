@@ -1,6 +1,6 @@
 import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol';
 import { z } from 'zod';
-import type { AgentPluginsLocalDiscoveryView, AgentPluginsInstallResult, AgentPluginsMarketplaceDiscoveryView, AgentPluginsSnapshot } from './ui-host.js';
+import type { AgentPluginsLocalDiscoveryView, AgentPluginsInstallResult, AgentPluginsMarketplaceDiscoveryView, AgentPluginsPiUpdateMode, AgentPluginsPiUpdateStatus, AgentPluginsSnapshot } from './ui-host.js';
 /** Browser projection of the Bridge Host Remote namespace. */
 export interface AgentPluginsRemoteApi {
     snapshot(): Promise<RemoteResult<AgentPluginsSnapshot>>;
@@ -11,6 +11,12 @@ export interface AgentPluginsRemoteApi {
     importLocal(ref: string): Promise<RemoteResult<AgentPluginsSnapshot>>;
     installPlugin(name: string, marketplace: string): Promise<RemoteResult<AgentPluginsInstallResult>>;
     setEnabled(name: string, enabled: boolean): Promise<RemoteResult<AgentPluginsSnapshot>>;
+    piUpdates(): Promise<RemoteResult<AgentPluginsPiUpdateStatus>>;
+    checkPiUpdates(): Promise<RemoteResult<AgentPluginsPiUpdateStatus>>;
+    setPiUpdateMode(mode: AgentPluginsPiUpdateMode): Promise<RemoteResult<AgentPluginsPiUpdateStatus>>;
+    setPiPackageAutoUpdate(id: string, enabled: boolean): Promise<RemoteResult<AgentPluginsPiUpdateStatus>>;
+    updatePiPackage(id: string): Promise<RemoteResult<AgentPluginsPiUpdateStatus>>;
+    updateAllPiPackages(): Promise<RemoteResult<AgentPluginsPiUpdateStatus>>;
 }
 /** Generated-shape Client contribution paired with the package Host manifest. */
 export declare const TYPERT_REMOTE: {

@@ -1,5 +1,5 @@
 import React, { useState, type ChangeEvent, type ReactNode } from 'react'
-import type { PluginBridgeView } from '../types.ts'
+import type { PluginBridgePiUpdateMode, PluginBridgeView } from '../types.ts'
 import css from './PluginBridgeContent.module.css'
 
 export interface PluginBridgeContentProps {
@@ -14,6 +14,11 @@ export interface PluginBridgeContentProps {
   readonly onImportLocal: (ref: string) => Promise<void>
   readonly onInstall: (name: string, marketplace: string) => Promise<void>
   readonly onSetEnabled: (name: string, enabled: boolean) => Promise<void>
+  readonly onCheckPiUpdates: () => Promise<void>
+  readonly onSetPiUpdateMode: (mode: PluginBridgePiUpdateMode) => Promise<void>
+  readonly onSetPiPackageAutoUpdate: (id: string, enabled: boolean) => Promise<void>
+  readonly onUpdatePiPackage: (id: string) => Promise<void>
+  readonly onUpdateAllPiPackages: () => Promise<void>
 }
 
 export type PluginBridgeMutationFeedback =
@@ -131,7 +136,7 @@ function MarketplaceCatalog({ marketplace, installations, mutationFeedback, t, o
   )
 }
 
-/** Four-section Agent Plugins management surface for DSH Web settings. */
+/** Agent Plugins management surface for DSH Web settings. */
 export function PluginBridgeContent({
   view,
   mutationFeedback = {},
@@ -144,12 +149,21 @@ export function PluginBridgeContent({
   onImportLocal,
   onInstall,
   onSetEnabled,
+  onCheckPiUpdates,
+  onSetPiUpdateMode,
+  onSetPiPackageAutoUpdate,
+  onUpdatePiPackage,
+  onUpdateAllPiPackages,
 }: PluginBridgeContentProps): ReactNode {
   const changeLocation = (event: ChangeEvent<HTMLInputElement>): void => {
     onMarketplaceLocationChange(event.currentTarget.value)
   }
   const rescanFeedback = mutationFeedback.rescan
   const addMarketplaceFeedback = mutationFeedback.addMarketplace
+  const piUpdates = view.piUpdates ?? { mode: 'notify' as const, updates: [] }
+  const checkPiFeedback = mutationFeedback.checkPiUpdates
+  const modeFeedback = mutationFeedback.setPiUpdateMode
+  const updateAllPiFeedback = mutationFeedback.updateAllPiPackages
   return (
     <div className={css.root}>
       <header className={css.header}>
@@ -164,6 +178,93 @@ export function PluginBridgeContent({
         >{t(rescanFeedback?.status === 'pending' ? 'working' : 'rescan')}</button>
       </header>
       <OperationError action="rescan" feedback={rescanFeedback} t={t} />
+
+      <section className={css.section} data-section="pi-updates">
+        <Heading label={t('piUpdates')} count={piUpdates.updates.length} />
+        <div className={css.updateControls}>
+          <label className={css.policy}>
+            <span>{t('piUpdateMode')}</span>
+            <select
+              className={css.select}
+              data-action="set-pi-update-mode"
+              value={piUpdates.mode}
+              disabled={modeFeedback?.status === 'pending'}
+              aria-busy={modeFeedback?.status === 'pending'}
+              onChange={(event: ChangeEvent<HTMLSelectElement>) => {
+                void onSetPiUpdateMode(event.currentTarget.value as PluginBridgePiUpdateMode)
+              }}
+            >
+              <option value="notify">{t('piUpdateModeNotify')}</option>
+              <option value="auto">{t('piUpdateModeAuto')}</option>
+              <option value="off">{t('piUpdateModeOff')}</option>
+            </select>
+          </label>
+          <div className={css.actions}>
+            <button
+              className={css.button}
+              data-action="check-pi-updates"
+              type="button"
+              disabled={checkPiFeedback?.status === 'pending'}
+              aria-busy={checkPiFeedback?.status === 'pending'}
+              onClick={() => { void onCheckPiUpdates() }}
+            >{t(checkPiFeedback?.status === 'pending' ? 'working' : 'checkUpdates')}</button>
+            <button
+              className={css.button}
+              data-action="update-all-pi-packages"
+              data-primary="true"
+              type="button"
+              disabled={updateAllPiFeedback?.status === 'pending' || piUpdates.updates.length === 0}
+              aria-busy={updateAllPiFeedback?.status === 'pending'}
+              onClick={() => { void onUpdateAllPiPackages() }}
+            >{t(updateAllPiFeedback?.status === 'pending' ? 'working' : 'updateAll')}</button>
+          </div>
+        </div>
+        <OperationError action="checkPiUpdates" feedback={checkPiFeedback} t={t} />
+        <OperationError action="setPiUpdateMode" feedback={modeFeedback} t={t} />
+        <OperationError action="updateAllPiPackages" feedback={updateAllPiFeedback} t={t} />
+        {piUpdates.lastCheckedAt === undefined ? null : (
+          <p className={css.empty} data-pi-last-checked={piUpdates.lastCheckedAt}>
+            {t('lastChecked')}: {new Date(piUpdates.lastCheckedAt).toLocaleString()}
+          </p>
+        )}
+        {piUpdates.updates.length === 0 ? <p className={css.empty}>{t('piUpdatesEmpty')}</p> : null}
+        <ul className={css.list}>
+          {piUpdates.updates.map(update => {
+            const updateAction = `updatePiPackage:${update.id}`
+            const autoAction = `setPiPackageAutoUpdate:${update.id}`
+            return (
+              <li className={css.row} key={update.id}>
+                <div className={css.main}>
+                  <strong className={css.name}>{update.displayName}</strong>
+                  <span className={css.meta}>{update.type} · {t(`piScope_${update.scope}`)}</span>
+                  <label className={css.checkboxLabel}>
+                    <input
+                      data-action="set-pi-package-auto-update"
+                      type="checkbox"
+                      checked={update.autoUpdate}
+                      disabled={mutationFeedback[autoAction]?.status === 'pending'}
+                      onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                        void onSetPiPackageAutoUpdate(update.id, event.currentTarget.checked)
+                      }}
+                    />
+                    <span>{t('autoUpdatePackage')}</span>
+                  </label>
+                  <OperationError action={autoAction} feedback={mutationFeedback[autoAction]} t={t} />
+                  <OperationError action={updateAction} feedback={mutationFeedback[updateAction]} t={t} />
+                </div>
+                <button
+                  className={css.button}
+                  data-action="update-pi-package"
+                  type="button"
+                  disabled={mutationFeedback[updateAction]?.status === 'pending'}
+                  aria-busy={mutationFeedback[updateAction]?.status === 'pending'}
+                  onClick={() => { void onUpdatePiPackage(update.id) }}
+                >{t(mutationFeedback[updateAction]?.status === 'pending' ? 'working' : 'update')}</button>
+              </li>
+            )
+          })}
+        </ul>
+      </section>
 
       <section className={css.section} data-section="installed">
         <Heading label={t('installed')} count={view.snapshot.installations.length} />

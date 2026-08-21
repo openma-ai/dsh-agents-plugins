@@ -1,5 +1,9 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { Remote, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
+import type { PiUpdateMode, PiUpdateStatus } from './pi-updates.js'
+
+export type AgentPluginsPiUpdateMode = PiUpdateMode
+export type AgentPluginsPiUpdateStatus = PiUpdateStatus
 
 /** One marketplace shown by the Agent Plugins settings tab. */
 export interface AgentPluginsMarketplaceView {
@@ -136,6 +140,14 @@ export class AgentPluginsGateway extends TypertRemoteService {
     return result
   }
 
+  private async serializePiOperation<T>(label: string, operation: () => Promise<T>): Promise<T> {
+    try {
+      return await this.serializeMutation(label, operation)
+    } catch {
+      throw new Error('Pi package operation failed; check Host logs')
+    }
+  }
+
   /** @returns Current Bridge-owned marketplaces and installations. */
   @Remote('snapshot')
   snapshot(): AgentPluginsSnapshot {
@@ -243,6 +255,46 @@ export class AgentPluginsGateway extends TypertRemoteService {
       else await this.ctx.pluginBridgeRuntime.disable(name)
       return this.snapshot()
     })
+  }
+
+  /** Read Pi's persisted update policy and latest browser-safe check result. */
+  @Remote('piUpdates')
+  piUpdates(): AgentPluginsPiUpdateStatus {
+    return this.ctx.pluginBridgeRuntime.piUpdateStatus()
+  }
+
+  /** Ask Pi's native package manager to check for updates now. */
+  @Remote('checkPiUpdates')
+  checkPiUpdates(): Promise<AgentPluginsPiUpdateStatus> {
+    return this.serializePiOperation('checkPiUpdates', () => this.ctx.pluginBridgeRuntime.checkPiUpdates())
+  }
+
+  /** Change the global Pi update lifecycle policy. */
+  @Remote('setPiUpdateMode')
+  setPiUpdateMode(mode: AgentPluginsPiUpdateMode): Promise<AgentPluginsPiUpdateStatus> {
+    return this.serializePiOperation(`setPiUpdateMode ${mode}`, () => (
+      this.ctx.pluginBridgeRuntime.setPiUpdateMode(mode)
+    ))
+  }
+
+  /** Include or exclude one Pi package from automatic updates. */
+  @Remote('setPiPackageAutoUpdate')
+  setPiPackageAutoUpdate(id: string, enabled: boolean): Promise<AgentPluginsPiUpdateStatus> {
+    return this.serializePiOperation(`setPiPackageAutoUpdate ${id}=${String(enabled)}`, () => (
+      this.ctx.pluginBridgeRuntime.setPiPackageAutoUpdate(id, enabled)
+    ))
+  }
+
+  /** Apply one available update with Pi's native package manager. */
+  @Remote('updatePiPackage')
+  updatePiPackage(id: string): Promise<AgentPluginsPiUpdateStatus> {
+    return this.serializePiOperation(`updatePiPackage ${id}`, () => this.ctx.pluginBridgeRuntime.updatePiPackage(id))
+  }
+
+  /** Apply all currently available imported-package updates with Pi. */
+  @Remote('updateAllPiPackages')
+  updateAllPiPackages(): Promise<AgentPluginsPiUpdateStatus> {
+    return this.serializePiOperation('updateAllPiPackages', () => this.ctx.pluginBridgeRuntime.updateAllPiPackages())
   }
 }
 

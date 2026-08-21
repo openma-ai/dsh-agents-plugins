@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict'
-import { access, mkdtemp, mkdir, readFile, readdir, realpath, writeFile } from 'node:fs/promises'
+import { access, mkdtemp, mkdir, readFile, readdir, realpath, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 import { Context } from '@deepseek-ai/cordis'
 import { dshSkillsAdapter } from '../src/adapters/dsh-skills.js'
 import { dshCodexAppsAdapter } from '../src/adapters/dsh-codex-apps.js'
+import { dshPiSkillsAdapter } from '../src/adapters/dsh-pi-skills.js'
 import {
   PluginBridgeKernel,
   type DshPluginRow,
@@ -16,6 +17,8 @@ import {
   type BridgeLoader,
 } from '../src/manager.js'
 import { codexLegacyProvider } from '../src/providers/codex-legacy.js'
+import { claudeCodeLegacyProvider } from '../src/providers/claude-code-legacy.js'
+import { piPackageProvider } from '../src/providers/pi-package.js'
 
 class MemoryLoader implements BridgeLoader {
   readonly rows = new Map<string, DshPluginRow>()
@@ -240,6 +243,353 @@ test('a failed local import rolls back Loader rows and keeps the foreign package
   assert.deepEqual(await readdir(join(root, 'bridge', 'plugins', 'imports')), [])
   assert.deepEqual(await readdir(join(root, 'bridge', 'data', 'imports')), [])
   assert.equal((await readdir(join(root, 'bridge', 'trash'))).length, 2)
+})
+
+test('a Codex cache import updates to the newest discovered version at the stable bridge root', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'plugin-bridge-codex-auto-update-'))
+  const versionRoots = new Map<string, string>()
+  for (const [version, body] of [
+    ['1.0.0', 'Use demo v1.'],
+    ['1.1.0-rc.2', 'Use demo v1.1 RC.'],
+    ['1.1.0', 'Use demo v1.1.'],
+  ] as const) {
+    const pluginRoot = join(root, 'cache', 'personal', 'demo', version)
+    await mkdir(join(pluginRoot, '.codex-plugin'), { recursive: true })
+    await mkdir(join(pluginRoot, 'skills', 'demo'), { recursive: true })
+    await writeFile(join(pluginRoot, '.codex-plugin', 'plugin.json'), JSON.stringify({
+      name: 'demo', skills: './skills/',
+    }))
+    await writeFile(join(pluginRoot, 'skills', 'demo', 'SKILL.md'), body)
+    versionRoots.set(version, pluginRoot)
+  }
+  let visibleVersions = ['1.0.0']
+  const kernel = new PluginBridgeKernel(new Context())
+  kernel.registerInstalledPluginLocator({
+    name: 'codex-local-cache',
+    async discover() {
+      return {
+        candidates: visibleVersions.map(version => ({
+          key: `personal/demo/${version}`,
+          name: 'demo',
+          root: versionRoots.get(version)!,
+          evidence: 'plugin-cache' as const,
+          version,
+          marketplace: 'personal',
+        })),
+      }
+    },
+  })
+  kernel.registerPackageFormatProvider(codexLegacyProvider)
+  kernel.registerComponentAdapter(dshSkillsAdapter)
+  const loader = new MemoryLoader()
+  const storage = join(root, 'bridge')
+  const manager = new PluginBridgeManager(kernel, loader, storage)
+  const installed = await manager.importLocalPlugin('codex-local-cache:personal/demo/1.0.0')
+  const stableRoot = installed.root
+
+  visibleVersions = ['1.0.0', '1.1.0-rc.2', '1.1.0']
+  const report = await manager.syncImportedPlugins()
+
+  assert.deepEqual(report, {
+    updated: [{ name: 'demo', fromVersion: '1.0.0', toVersion: '1.1.0' }],
+    diagnostics: [],
+  })
+  assert.equal(manager.listInstallations()[0]?.root, stableRoot)
+  assert.equal(
+    await readFile(join(stableRoot, 'skills', 'demo', 'SKILL.md'), 'utf8'),
+    'Use demo v1.1.',
+  )
+  assert.equal(loader.rows.size, 1)
+  const persisted = JSON.parse(await readFile(join(storage, 'state.json'), 'utf8')) as {
+    installations: Array<{ source?: { version?: string } }>
+  }
+  assert.equal(persisted.installations[0]?.source?.version, '1.1.0')
+})
+
+test('a failed Codex cache auto-update restores the old package and active rows', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'plugin-bridge-codex-auto-update-rollback-'))
+  const versionRoots = new Map<string, string>()
+  for (const [version, body] of [['1.0.0', 'Use stable demo.'], ['2.0.0', 'Use rejected demo.']] as const) {
+    const pluginRoot = join(root, 'cache', 'personal', 'demo', version)
+    await mkdir(join(pluginRoot, '.codex-plugin'), { recursive: true })
+    await mkdir(join(pluginRoot, 'skills', 'demo'), { recursive: true })
+    await writeFile(join(pluginRoot, '.codex-plugin', 'plugin.json'), JSON.stringify({
+      name: 'demo', skills: './skills/',
+    }))
+    await writeFile(join(pluginRoot, 'skills', 'demo', 'SKILL.md'), body)
+    versionRoots.set(version, pluginRoot)
+  }
+  let visibleVersions = ['1.0.0']
+  const kernel = new PluginBridgeKernel(new Context())
+  kernel.registerInstalledPluginLocator({
+    name: 'codex-local-cache',
+    async discover() {
+      return {
+        candidates: visibleVersions.map(version => ({
+          key: `personal/demo/${version}`,
+          name: 'demo',
+          root: versionRoots.get(version)!,
+          evidence: 'plugin-cache' as const,
+          version,
+          marketplace: 'personal',
+        })),
+      }
+    },
+  })
+  kernel.registerPackageFormatProvider(codexLegacyProvider)
+  kernel.registerComponentAdapter(dshSkillsAdapter)
+  const rows = new Map<string, DshPluginRow>()
+  const loader: BridgeLoader = {
+    async create(row) {
+      const skillRoot = String(row.config?.bundledSkillDir)
+      const body = await readFile(join(skillRoot, 'demo', 'SKILL.md'), 'utf8')
+      if (body === 'Use rejected demo.') throw new Error('new plugin activation rejected')
+      rows.set(row.id, row)
+      return row.id
+    },
+    async remove(id) {
+      if (!rows.delete(id)) throw new Error(`unknown loader row ${id}`)
+    },
+  }
+  const storage = join(root, 'bridge')
+  const manager = new PluginBridgeManager(kernel, loader, storage)
+  const installed = await manager.importLocalPlugin('codex-local-cache:personal/demo/1.0.0')
+
+  visibleVersions = ['1.0.0', '2.0.0']
+  const report = await manager.syncImportedPlugins()
+
+  assert.deepEqual(report.updated, [])
+  assert.match(report.diagnostics[0] ?? '', /demo.*2\.0\.0.*activation rejected/i)
+  assert.equal(
+    await readFile(join(installed.root, 'skills', 'demo', 'SKILL.md'), 'utf8'),
+    'Use stable demo.',
+  )
+  assert.equal(rows.size, 1)
+  const persisted = JSON.parse(await readFile(join(storage, 'state.json'), 'utf8')) as {
+    installations: Array<{ source?: { version?: string } }>
+  }
+  assert.equal(persisted.installations[0]?.source?.version, '1.0.0')
+})
+
+test('a Codex cache auto-update rejects symlinks without interrupting reconciliation', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'plugin-bridge-codex-auto-update-symlink-'))
+  const versionRoots = new Map<string, string>()
+  for (const version of ['1.0.0', '2.0.0']) {
+    const pluginRoot = join(root, 'cache', 'personal', 'demo', version)
+    await mkdir(join(pluginRoot, '.codex-plugin'), { recursive: true })
+    await mkdir(join(pluginRoot, 'skills', 'demo'), { recursive: true })
+    await writeFile(join(pluginRoot, '.codex-plugin', 'plugin.json'), JSON.stringify({
+      name: 'demo', skills: './skills/',
+    }))
+    await writeFile(join(pluginRoot, 'skills', 'demo', 'SKILL.md'), `Use demo ${version}.`)
+    versionRoots.set(version, pluginRoot)
+  }
+  await symlink(
+    join(root, 'missing-secret.txt'),
+    join(versionRoots.get('2.0.0')!, 'skills', 'demo', 'secret.txt'),
+  )
+  let visibleVersions = ['1.0.0']
+  const kernel = new PluginBridgeKernel(new Context())
+  kernel.registerInstalledPluginLocator({
+    name: 'codex-local-cache',
+    async discover() {
+      return {
+        candidates: visibleVersions.map(version => ({
+          key: `personal/demo/${version}`,
+          name: 'demo',
+          root: versionRoots.get(version)!,
+          evidence: 'plugin-cache' as const,
+          version,
+          marketplace: 'personal',
+        })),
+      }
+    },
+  })
+  kernel.registerPackageFormatProvider(codexLegacyProvider)
+  kernel.registerComponentAdapter(dshSkillsAdapter)
+  const loader = new MemoryLoader()
+  const manager = new PluginBridgeManager(kernel, loader, join(root, 'bridge'))
+  const installed = await manager.importLocalPlugin('codex-local-cache:personal/demo/1.0.0')
+
+  visibleVersions = ['1.0.0', '2.0.0']
+  const report = await manager.syncImportedPlugins()
+
+  assert.deepEqual(report.updated, [])
+  assert.match(report.diagnostics[0] ?? '', /demo.*2\.0\.0.*unsupported symlink/i)
+  assert.equal(
+    await readFile(join(installed.root, 'skills', 'demo', 'SKILL.md'), 'utf8'),
+    'Use demo 1.0.0.',
+  )
+  assert.equal(loader.rows.size, 1)
+})
+
+test('a Claude Code import follows the exact installed registry entry including rollback', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'plugin-bridge-claude-auto-update-'))
+  const versionRoots = new Map<string, string>()
+  for (const [version, body] of [['1.0.0', 'Use registry v1.'], ['2.0.0', 'Use registry v2.']] as const) {
+    const pluginRoot = join(root, 'cache', version)
+    await mkdir(join(pluginRoot, '.claude-plugin'), { recursive: true })
+    await mkdir(join(pluginRoot, 'skills', 'demo'), { recursive: true })
+    await writeFile(join(pluginRoot, '.claude-plugin', 'plugin.json'), JSON.stringify({
+      name: 'claude-demo', version,
+    }))
+    await writeFile(join(pluginRoot, 'skills', 'demo', 'SKILL.md'), body)
+    versionRoots.set(version, pluginRoot)
+  }
+  let activeVersion = '2.0.0'
+  const kernel = new PluginBridgeKernel(new Context())
+  kernel.registerInstalledPluginLocator({
+    name: 'claude-code-installed',
+    async discover() {
+      return {
+        candidates: [{
+          key: 'claude-demo@company#user',
+          name: 'claude-demo',
+          root: versionRoots.get(activeVersion)!,
+          evidence: 'installed-registry' as const,
+          version: activeVersion,
+          marketplace: 'company',
+          scope: 'user',
+        }],
+      }
+    },
+  })
+  kernel.registerPackageFormatProvider(claudeCodeLegacyProvider)
+  kernel.registerComponentAdapter(dshSkillsAdapter)
+  const loader = new MemoryLoader()
+  const manager = new PluginBridgeManager(kernel, loader, join(root, 'bridge'))
+  const installed = await manager.importLocalPlugin(
+    'claude-code-installed:claude-demo@company#user',
+  )
+
+  activeVersion = '1.0.0'
+  const report = await manager.syncImportedPlugins()
+
+  assert.deepEqual(report, {
+    updated: [{ name: 'claude-demo', fromVersion: '2.0.0', toVersion: '1.0.0' }],
+    diagnostics: [],
+  })
+  assert.equal(
+    await readFile(join(installed.root, 'skills', 'demo', 'SKILL.md'), 'utf8'),
+    'Use registry v1.',
+  )
+  assert.equal(loader.rows.size, 1)
+})
+
+test('Pi reconciliation follows npm and git roots but leaves local packages explicit', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'plugin-bridge-pi-auto-update-'))
+  const roots = {
+    npm: join(root, 'npm-demo'),
+    git: join(root, 'git-demo'),
+    local: join(root, 'local-demo'),
+  }
+  const writePackage = async (
+    packageRoot: string,
+    name: string,
+    body: string,
+    version?: string,
+  ): Promise<void> => {
+    await mkdir(join(packageRoot, 'skills', 'demo'), { recursive: true })
+    await writeFile(join(packageRoot, 'package.json'), JSON.stringify({
+      name,
+      ...version === undefined ? {} : { version },
+      pi: { skills: ['skills/'] },
+    }))
+    await writeFile(join(packageRoot, 'skills', 'demo', 'SKILL.md'), body)
+  }
+  await writePackage(roots.npm, 'npm-demo', 'Use npm v1.', '1.0.0')
+  await writePackage(roots.git, 'git-demo', 'Use git checkout one.')
+  await writePackage(roots.local, 'local-demo', 'Use local edit one.', '1.0.0')
+  let npmVersion = '1.0.0'
+  let localVersion = '1.0.0'
+  const kernel = new PluginBridgeKernel(new Context())
+  kernel.registerInstalledPluginLocator({
+    name: 'pi-installed-user',
+    async discover() {
+      return {
+        candidates: [{
+          key: 'user/npm/npm-demo',
+          name: 'npm-demo',
+          root: roots.npm,
+          evidence: 'installed-registry' as const,
+          version: npmVersion,
+          scope: 'user',
+          upstreamSource: 'npm:npm-demo',
+        }, {
+          key: 'user/git/example.com%2Fgit-demo',
+          name: 'git-demo',
+          root: roots.git,
+          evidence: 'installed-registry' as const,
+          scope: 'user',
+          upstreamSource: 'git:https://example.com/git-demo.git',
+        }, {
+          key: 'user/local/0123456789abcdef',
+          name: 'local-demo',
+          root: roots.local,
+          evidence: 'installed-registry' as const,
+          version: localVersion,
+          scope: 'user',
+        }],
+      }
+    },
+  })
+  kernel.registerPackageFormatProvider(piPackageProvider)
+  kernel.registerComponentAdapter(dshPiSkillsAdapter)
+  const loader = new MemoryLoader()
+  const manager = new PluginBridgeManager(kernel, loader, join(root, 'bridge'))
+  const npmInstalled = await manager.importLocalPlugin('pi-installed-user:user/npm/npm-demo')
+  const gitInstalled = await manager.importLocalPlugin('pi-installed-user:user/git/example.com%2Fgit-demo')
+  const localInstalled = await manager.importLocalPlugin('pi-installed-user:user/local/0123456789abcdef')
+
+  assert.equal(npmInstalled.source?.upstreamSource, 'npm:npm-demo')
+  assert.equal(gitInstalled.source?.upstreamSource, 'git:https://example.com/git-demo.git')
+  assert.equal(localInstalled.source?.upstreamSource, undefined)
+
+  npmVersion = '2.0.0'
+  localVersion = '2.0.0'
+  await writePackage(roots.npm, 'npm-demo', 'Use npm v2.', npmVersion)
+  await writePackage(roots.git, 'git-demo', 'Use git checkout two.')
+  await writePackage(roots.local, 'local-demo', 'Use local edit two.', localVersion)
+  const report = await manager.syncImportedPlugins()
+
+  assert.deepEqual(report, {
+    updated: [
+      { name: 'npm-demo', fromVersion: '1.0.0', toVersion: '2.0.0' },
+      { name: 'git-demo' },
+    ],
+    diagnostics: [],
+  })
+  assert.equal(
+    await readFile(join(npmInstalled.root, 'skills', 'demo', 'SKILL.md'), 'utf8'),
+    'Use npm v2.',
+  )
+  assert.equal(
+    await readFile(join(gitInstalled.root, 'skills', 'demo', 'SKILL.md'), 'utf8'),
+    'Use git checkout two.',
+  )
+  assert.equal(
+    await readFile(join(localInstalled.root, 'skills', 'demo', 'SKILL.md'), 'utf8'),
+    'Use local edit one.',
+  )
+  assert.equal(loader.rows.size, 3)
+
+  await manager.dispose()
+  const statePath = join(root, 'bridge', 'state.json')
+  const persisted = JSON.parse(await readFile(statePath, 'utf8')) as {
+    installations: Array<{ name: string; source?: unknown }>
+  }
+  const legacyGit = persisted.installations.find(installation => installation.name === 'git-demo')
+  assert.ok(legacyGit)
+  delete legacyGit.source
+  await writeFile(statePath, `${JSON.stringify(persisted, undefined, 2)}\n`)
+
+  const restarted = new PluginBridgeManager(kernel, new MemoryLoader(), join(root, 'bridge'))
+  await restarted.start()
+  assert.deepEqual(await restarted.syncImportedPlugins(), { updated: [], diagnostics: [] })
+  assert.equal(
+    restarted.listInstallations().find(installation => installation.name === 'git-demo')?.source?.upstreamSource,
+    'git:https://example.com/git-demo.git',
+  )
 })
 
 test('registered marketplace discovery is read-only and explicit import copies a local catalog', async () => {

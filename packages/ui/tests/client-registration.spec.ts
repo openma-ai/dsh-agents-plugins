@@ -14,6 +14,7 @@ test('the Web contribution mounts its Remote before registering the bridge setti
     snapshot: async () => ({ ok: true, value: { marketplaces: [], installations: [] } }),
     discoverLocal: async () => ({ ok: true, value: { candidates: [], diagnostics: [] } }),
     discoverMarketplaces: async () => ({ ok: true, value: { candidates: [], diagnostics: [] } }),
+    piUpdates: async () => ({ ok: true, value: { mode: 'notify', updates: [] } }),
   }
   const ctx = {
     remote: {
@@ -83,12 +84,17 @@ test('the Web contribution mounts its Remote before registering the bridge setti
   const face = (registration?.options.inject as (() => Record<string, unknown>))()
   assert.deepEqual(Object.keys(face).sort(), [
     'addMarketplace',
+    'checkPiUpdates',
     'importLocal',
     'importMarketplace',
     'install',
     'load',
     'rescan',
     'setEnabled',
+    'setPiPackageAutoUpdate',
+    'setPiUpdateMode',
+    'updateAllPiPackages',
+    'updatePiPackage',
   ])
   assert.equal(Object.hasOwn(face, 'api'), false)
   await (face.load as () => Promise<unknown>)()
@@ -115,6 +121,7 @@ test('mutation callbacks reuse the returned durable snapshot and rescan only for
   }
   const local = { candidates: [], diagnostics: [] }
   const marketplaces = { candidates: [], diagnostics: [] }
+  const piUpdates = { mode: 'notify' as const, updates: [] }
   const api = {
     snapshot: async () => { throw new Error('mutation must not reload the durable snapshot') },
     discoverLocal: async () => {
@@ -125,6 +132,10 @@ test('mutation callbacks reuse the returned durable snapshot and rescan only for
       calls.push('discoverMarketplaces')
       return { ok: true as const, value: marketplaces }
     },
+    piUpdates: async () => {
+      calls.push('piUpdates')
+      return { ok: true as const, value: piUpdates }
+    },
     installPlugin: async (name: string, marketplace: string) => {
       calls.push(`install:${name}@${marketplace}`)
       return { ok: true as const, value: { status: 'installed' as const, snapshot } }
@@ -133,8 +144,8 @@ test('mutation callbacks reuse the returned durable snapshot and rescan only for
 
   const face = client.createPluginBridgeSettingsFace(api as never)
 
-  assert.deepEqual(await face.install('demo', 'team'), { snapshot, local, marketplaces })
-  assert.deepEqual(calls, ['install:demo@team', 'discoverLocal', 'discoverMarketplaces'])
+  assert.deepEqual(await face.install('demo', 'team'), { snapshot, local, marketplaces, piUpdates })
+  assert.deepEqual(calls, ['install:demo@team', 'discoverLocal', 'discoverMarketplaces', 'piUpdates'])
 })
 
 test('an install failure preserves its Host-classified reason without exposing Host details', async () => {
@@ -155,4 +166,40 @@ test('an install failure preserves its Host-classified reason without exposing H
       && (error as Error & { reason?: string }).reason === 'unsupported'
     ),
   )
+})
+
+test('Pi settings callbacks delegate checks, policy, exclusions, and native update actions', async () => {
+  const client = await import('../src/client/register.js')
+  const calls: string[] = []
+  const viewParts = {
+    snapshot: { marketplaces: [], installations: [] },
+    local: { candidates: [], diagnostics: [] },
+    marketplaces: { candidates: [], diagnostics: [] },
+    piUpdates: { mode: 'notify' as const, updates: [] },
+  }
+  const ok = <T>(value: T) => ({ ok: true as const, value })
+  const api = {
+    snapshot: async () => ok(viewParts.snapshot),
+    discoverLocal: async () => ok(viewParts.local),
+    discoverMarketplaces: async () => ok(viewParts.marketplaces),
+    piUpdates: async () => ok(viewParts.piUpdates),
+    checkPiUpdates: async () => { calls.push('check'); return ok(viewParts.piUpdates) },
+    setPiUpdateMode: async (mode: string) => { calls.push(`mode:${mode}`); return ok(viewParts.piUpdates) },
+    setPiPackageAutoUpdate: async (id: string, enabled: boolean) => {
+      calls.push(`auto:${id}:${enabled}`)
+      return ok(viewParts.piUpdates)
+    },
+    updatePiPackage: async (id: string) => { calls.push(`update:${id}`); return ok(viewParts.piUpdates) },
+    updateAllPiPackages: async () => { calls.push('update-all'); return ok(viewParts.piUpdates) },
+  }
+  const face = client.createPluginBridgeSettingsFace(api as never)
+  const id = 'a'.repeat(32)
+
+  await face.checkPiUpdates()
+  await face.setPiUpdateMode('auto')
+  await face.setPiPackageAutoUpdate(id, false)
+  await face.updatePiPackage(id)
+  await face.updateAllPiPackages()
+
+  assert.deepEqual(calls, ['check', 'mode:auto', `auto:${id}:false`, `update:${id}`, 'update-all'])
 })

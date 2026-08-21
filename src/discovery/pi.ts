@@ -216,6 +216,7 @@ export function createPiInstalledPluginLocator(config: Config = {}): InstalledPl
             evidence: 'installed-registry',
             ...typeof version === 'string' && version.length > 0 ? { version } : {},
             scope,
+            ...source.kind === 'local' ? {} : { upstreamSource: entry },
           })
           seenRoots.add(root)
         } catch (error: unknown) {
