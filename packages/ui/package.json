@@ -54,7 +54,7 @@
     "build": "tsc -p tsconfig.host.json && tsdown --config tsdown.host.config.ts && tsc -p tsconfig.client.json && tsdown --config tsdown.client.config.ts",
     "prepack": "npm run build",
     "pretest": "npm run build",
-    "test": "tsx --test tests/client-registration.spec.ts tests/view-model.spec.ts tests/remote-contract.spec.ts tests/built-bundle.spec.ts && vitest run tests/client-apply.spec.ts tests/content.spec.ts tests/settings-tab.spec.ts",
+    "test": "tsx --test tests/client-registration.spec.ts tests/view-model.spec.ts tests/remote-contract.spec.ts tests/built-bundle.spec.ts tests/build-reproducibility.spec.ts && vitest run tests/client-apply.spec.ts tests/content.spec.ts tests/settings-tab.spec.ts",
     "typecheck": "tsc -p tsconfig.host.json --noEmit && tsc -p tsconfig.client.json --noEmit"
   },
   "peerDependencies": {

@@ -6,6 +6,13 @@ import { transform } from 'lightningcss'
 const PACKAGE_NAME = '@openma/dsh-agents-plugins-bridge-ui'
 const CSS_PREFIX = '\0openma-plugin-bridge-css:'
 const CSS_SUFFIX = '.mjs'
+const cssFiles = new Map<string, string>()
+
+function stableCssPath(file: string): string {
+  const normalized = file.replaceAll('\\', '/')
+  const sourceIndex = normalized.lastIndexOf('/src/')
+  return sourceIndex === -1 ? basename(file) : normalized.slice(sourceIndex + 1)
+}
 
 export default defineConfig({
   entry: { client: 'src/client/index.ts' },
@@ -26,20 +33,26 @@ export default defineConfig({
       name: 'openma-plugin-bridge-css-modules',
       resolveId(source: string, importer: string | undefined) {
         if (!source.endsWith('.module.css') || importer === undefined) return null
-        return CSS_PREFIX + new URL(source, `file://${importer}`).pathname + CSS_SUFFIX
+        const file = new URL(source, `file://${importer}`).pathname
+        const id = CSS_PREFIX + stableCssPath(file) + CSS_SUFFIX
+        cssFiles.set(id, file)
+        return id
       },
       async load(id: string) {
         if (!id.startsWith(CSS_PREFIX)) return null
-        const file = id.slice(CSS_PREFIX.length, -CSS_SUFFIX.length)
+        const file = cssFiles.get(id)
+        if (file === undefined) throw new Error(`unresolved CSS module: ${id}`)
         this.addWatchFile(file)
         const result = transform({
-          filename: file,
+          filename: stableCssPath(file),
           code: await readFile(file),
           cssModules: { pattern: '[hash]_[local]' },
           minify: true,
         })
         const classes: Record<string, string> = {}
-        for (const [local, value] of Object.entries(result.exports ?? {})) classes[local] = value.name
+        for (const [local, value] of Object.entries(result.exports ?? {}).sort(([left], [right]) => left.localeCompare(right))) {
+          classes[local] = value.name
+        }
         const tag = `${PACKAGE_NAME}/${basename(file)}`
         return [
           `const css = ${JSON.stringify(result.code.toString())};`,
