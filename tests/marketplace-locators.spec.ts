@@ -38,12 +38,14 @@ test('Codex marketplace locator reads only registered config tables and preserve
     name: 'local-tools',
     location: await realpath(local),
     sourceType: 'local',
+    manifestPath: '.agents/plugins/marketplace.json',
   }, {
     key: 'remote-tools',
     name: 'remote-tools',
     location: 'https://github.com/company/plugins.git',
     sourceType: 'git',
     revision: 'main',
+    manifestPath: '.agents/plugins/marketplace.json',
   }])
   assert.deepEqual(observation.diagnostics, [
     'codex-registered-marketplaces: unsupported uses unsupported source_type "npm"',
@@ -70,6 +72,7 @@ test('Claude Code marketplace locator trusts the explicit known_marketplaces ins
     name: 'company',
     location: await realpath(checkout),
     sourceType: 'installed-checkout',
+    manifestPath: '.claude-plugin/marketplace.json',
   }] })
 })
 

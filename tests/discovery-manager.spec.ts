@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { access, mkdtemp, mkdir, readFile, readdir, realpath, symlink, writeFile } from 'node:fs/promises'
+import { access, cp, mkdtemp, mkdir, readFile, readdir, realpath, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
@@ -15,7 +15,10 @@ import {
 import {
   PluginBridgeManager,
   type BridgeLoader,
+  type GitRepositoryAcquirer,
 } from '../src/manager.js'
+import { claudeCodeMarketplaceProvider } from '../src/marketplaces/claude-code.js'
+import { codexMarketplaceProvider } from '../src/marketplaces/codex.js'
 import { codexLegacyProvider } from '../src/providers/codex-legacy.js'
 import { claudeCodeLegacyProvider } from '../src/providers/claude-code-legacy.js'
 import { piPackageProvider } from '../src/providers/pi-package.js'
@@ -658,4 +661,53 @@ test('registered marketplace discovery is read-only and explicit import copies a
   assert.match(imported.root, /bridge\/marketplaces\/imports\//)
   await access(join(imported.root, '.claude-plugin', 'marketplace.json'))
   assert.deepEqual(manager.listMarketplaces().map(marketplace => marketplace.name), ['company-tools'])
+})
+
+test('a Codex Git registration selects its Codex catalog from a multi-agent repository', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'plugin-bridge-codex-marketplace-import-'))
+  const foreign = join(root, 'foreign-marketplace')
+  await mkdir(join(foreign, '.agents', 'plugins'), { recursive: true })
+  await mkdir(join(foreign, '.claude-plugin'), { recursive: true })
+  await writeFile(join(foreign, '.agents', 'plugins', 'marketplace.json'), JSON.stringify({
+    name: 'chatcut-inc',
+    plugins: [{ name: 'chatcut-codex', source: { source: 'local', path: './codex' } }],
+  }))
+  await writeFile(join(foreign, '.claude-plugin', 'marketplace.json'), JSON.stringify({
+    name: 'chatcut-inc',
+    plugins: [{ name: 'chatcut-claude', source: './claude' }],
+  }))
+  const acquirer: GitRepositoryAcquirer = {
+    async clone(_repo, destination) {
+      await cp(foreign, destination, { recursive: true })
+    },
+  }
+  const kernel = new PluginBridgeKernel(new Context())
+  kernel.registerMarketplaceRegistrationLocator({
+    name: 'codex-registered-marketplaces',
+    async discover() {
+      return { candidates: [{
+        key: 'chatcut-inc',
+        name: 'chatcut-inc',
+        location: 'https://github.com/ChatCut-Inc/agent-plugin.git',
+        sourceType: 'git' as const,
+        revision: 'main',
+        manifestPath: '.agents/plugins/marketplace.json',
+      }] }
+    },
+  })
+  kernel.registerMarketplaceProvider(codexMarketplaceProvider)
+  kernel.registerMarketplaceProvider(claudeCodeMarketplaceProvider)
+  const manager = new PluginBridgeManager(
+    kernel,
+    new MemoryLoader(),
+    join(root, 'bridge'),
+    { git: acquirer },
+  )
+
+  const imported = await manager.importRegisteredMarketplace(
+    'codex-registered-marketplaces:chatcut-inc',
+  )
+
+  assert.equal(imported.provider, 'codex-marketplace')
+  assert.deepEqual(imported.plugins.map(plugin => plugin.name), ['chatcut-codex'])
 })

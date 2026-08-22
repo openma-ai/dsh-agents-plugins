@@ -68,6 +68,8 @@ export interface MarketplaceRegistrationCandidate {
     readonly location: string;
     readonly sourceType: 'local' | 'git' | 'installed-checkout';
     readonly revision?: string;
+    /** Exact foreign-agent catalog dialect to select when a repository ships more than one. */
+    readonly manifestPath?: '.agents/plugins/marketplace.json' | '.claude-plugin/marketplace.json' | 'marketplace.json';
     readonly diagnostics?: readonly string[];
 }
 export interface MarketplaceRegistrationLocatorObservation {

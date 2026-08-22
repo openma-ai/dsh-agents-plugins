@@ -507,7 +507,7 @@ export class PluginBridgeManager {
       const location = candidate.revision === undefined
         ? candidate.location
         : `${candidate.location}#${candidate.revision}`
-      return this.addMarketplace(location)
+      return this.addMarketplace(location, candidate.manifestPath)
     }
 
     if (!(await lstat(candidate.location)).isDirectory()) {
@@ -539,7 +539,7 @@ export class PluginBridgeManager {
       await rejectSymlinks(stage)
       await rename(stage, destination)
       promoted = true
-      return await this.addMarketplace(destination)
+      return await this.addMarketplace(destination, candidate.manifestPath)
     } catch (error: unknown) {
       if (promoted) await this.moveToTrash(destination)
       else await rm(stage, { recursive: true, force: true })
@@ -783,13 +783,16 @@ export class PluginBridgeManager {
   }
 
   /** Register one local Codex or Claude marketplace directory. */
-  async addMarketplace(location: string): Promise<RegisteredMarketplace> {
+  async addMarketplace(
+    location: string,
+    preferredManifestPath?: typeof CATALOG_PATHS[number],
+  ): Promise<RegisteredMarketplace> {
     await this.ensureStarted()
     const github = githubLocation(location)
     let remoteStage: string | undefined
     let target: string
     let root: string
-    let requestedPath: typeof CATALOG_PATHS[number] | undefined
+    let requestedPath: typeof CATALOG_PATHS[number] | undefined = preferredManifestPath
     if (github !== undefined) {
       const marketplaceStages = join(this.storageDir, 'marketplaces')
       await mkdir(marketplaceStages, { recursive: true, mode: 0o700 })
@@ -809,7 +812,7 @@ export class PluginBridgeManager {
       const stats = await lstat(target)
       const file = stats.isDirectory() ? undefined : catalogFile(target)
       root = stats.isDirectory() ? target : file?.root ?? dirname(target)
-      requestedPath = stats.isDirectory() ? undefined : file?.manifestPath ?? 'marketplace.json'
+      requestedPath = stats.isDirectory() ? requestedPath : file?.manifestPath ?? 'marketplace.json'
     }
     const detections: DetectedMarketplaceCatalog[] = []
     const catalogSource = new DirectoryPackageSource(root)

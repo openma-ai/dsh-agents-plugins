@@ -69,6 +69,7 @@ export function createCodexMarketplaceRegistrationLocator(
               name: marketplaceName,
               location: await realpath(source),
               sourceType: 'local',
+              manifestPath: '.agents/plugins/marketplace.json',
             })
           } catch (error: unknown) {
             diagnostics.push(`codex-registered-marketplaces: ${marketplaceName} local source cannot be inspected: ${String(error)}`)
@@ -82,6 +83,7 @@ export function createCodexMarketplaceRegistrationLocator(
             name: marketplaceName,
             location: source,
             sourceType: 'git',
+            manifestPath: '.agents/plugins/marketplace.json',
             ...revision === undefined ? {} : { revision },
           })
           continue

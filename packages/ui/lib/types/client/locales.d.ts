@@ -2,6 +2,11 @@
 export declare const zh: {
     tab: string;
     title: string;
+    bridgeTabs: string;
+    bridgeOverview: string;
+    codexBridge: string;
+    claudeCodeBridge: string;
+    piBridge: string;
     loading: string;
     loadError: string;
     retry: string;
@@ -53,13 +58,21 @@ export declare const zh: {
     install: string;
     installing: string;
     working: string;
+    downloading: string;
+    remoteMarketplaceRegistration: string;
     import: string;
+    imported: string;
 };
 export type PluginBridgeLocaleKey = keyof typeof zh;
 /** English dictionary checked against the Chinese key set. */
 export declare const en: {
     tab: string;
     title: string;
+    bridgeTabs: string;
+    bridgeOverview: string;
+    codexBridge: string;
+    claudeCodeBridge: string;
+    piBridge: string;
     loading: string;
     loadError: string;
     retry: string;
@@ -111,6 +124,9 @@ export declare const en: {
     install: string;
     installing: string;
     working: string;
+    downloading: string;
+    remoteMarketplaceRegistration: string;
     import: string;
+    imported: string;
 };
 //# sourceMappingURL=locales.d.ts.map

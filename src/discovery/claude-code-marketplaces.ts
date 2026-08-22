@@ -66,6 +66,7 @@ export function createClaudeCodeMarketplaceRegistrationLocator(
             name: marketplaceName,
             location: await realpath(location),
             sourceType: 'installed-checkout',
+            manifestPath: '.claude-plugin/marketplace.json',
           })
         } catch (error: unknown) {
           diagnostics.push(`claude-code-registered-marketplaces: ${marketplaceName} cannot be inspected: ${String(error)}`)

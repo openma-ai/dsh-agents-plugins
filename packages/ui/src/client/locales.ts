@@ -2,6 +2,11 @@
 export const zh = {
   tab: 'Agent 插件',
   title: 'Agent 插件桥接',
+  bridgeTabs: '按 Agent 查看桥接状态',
+  bridgeOverview: '概览',
+  codexBridge: 'Codex',
+  claudeCodeBridge: 'Claude Code',
+  piBridge: 'Pi',
   loading: '正在读取插件与市场…',
   loadError: '暂时无法读取插件桥接状态。',
   retry: '重试',
@@ -53,7 +58,10 @@ export const zh = {
   install: '安装',
   installing: '安装中…',
   working: '处理中…',
+  downloading: '下载中…',
+  remoteMarketplaceRegistration: 'Git 注册 · 添加时下载完整市场',
   import: '导入',
+  imported: '已导入',
 } satisfies Record<string, string>
 
 export type PluginBridgeLocaleKey = keyof typeof zh
@@ -62,6 +70,11 @@ export type PluginBridgeLocaleKey = keyof typeof zh
 export const en = {
   tab: 'Agent plugins',
   title: 'Agent plugin bridge',
+  bridgeTabs: 'Bridge state by agent',
+  bridgeOverview: 'Overview',
+  codexBridge: 'Codex',
+  claudeCodeBridge: 'Claude Code',
+  piBridge: 'Pi',
   loading: 'Reading plugins and marketplaces…',
   loadError: 'The plugin bridge is temporarily unavailable.',
   retry: 'Retry',
@@ -113,5 +126,8 @@ export const en = {
   install: 'Install',
   installing: 'Installing…',
   working: 'Working…',
+  downloading: 'Downloading…',
+  remoteMarketplaceRegistration: 'Git registration · downloads the full catalog when added',
   import: 'Import',
+  imported: 'Imported',
 } satisfies Record<PluginBridgeLocaleKey, string>

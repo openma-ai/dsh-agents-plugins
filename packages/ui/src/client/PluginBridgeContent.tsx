@@ -1,4 +1,11 @@
-import React, { useState, type ChangeEvent, type ReactNode } from 'react'
+import React, {
+  useId,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type KeyboardEvent,
+  type ReactNode,
+} from 'react'
 import type { PluginBridgePiUpdateMode, PluginBridgeView } from '../types.ts'
 import css from './PluginBridgeContent.module.css'
 
@@ -24,6 +31,43 @@ export interface PluginBridgeContentProps {
 export type PluginBridgeMutationFeedback =
   | { readonly status: 'pending' }
   | { readonly status: 'error'; readonly messageKey: string }
+
+type AgentBridge = 'codex' | 'claude-code' | 'pi'
+type AgentBridgeTab = 'overview' | AgentBridge
+
+const AGENT_BRIDGE_TABS: readonly AgentBridgeTab[] = ['overview', 'codex', 'claude-code', 'pi']
+const AGENT_BRIDGE_TAB_LABELS = {
+  overview: 'bridgeOverview',
+  codex: 'codexBridge',
+  'claude-code': 'claudeCodeBridge',
+  pi: 'piBridge',
+} as const
+
+function bridgeFromIdentity(identity: string): AgentBridge | undefined {
+  if (identity.startsWith('claude-code-') || identity === 'claude-code-legacy') return 'claude-code'
+  if (identity.startsWith('codex-') || identity === 'codex-legacy') return 'codex'
+  if (identity.startsWith('pi-') || identity === 'pi-package') return 'pi'
+  return undefined
+}
+
+function installationBridge(
+  installation: PluginBridgeView['snapshot']['installations'][number],
+  marketplaces: PluginBridgeView['snapshot']['marketplaces'],
+): AgentBridge | undefined {
+  return bridgeFromIdentity(installation.format)
+    ?? bridgeFromIdentity(installation.marketplace.replace(/^import:/u, ''))
+    ?? bridgeFromIdentity(
+      marketplaces.find(marketplace => marketplace.name === installation.marketplace)?.provider ?? '',
+    )
+}
+
+function diagnosticBridge(diagnostic: string): AgentBridge | undefined {
+  return bridgeFromIdentity(diagnostic.slice(0, diagnostic.indexOf(':') < 0 ? undefined : diagnostic.indexOf(':')))
+}
+
+function belongsToTab(tab: AgentBridgeTab, bridge: AgentBridge | undefined): boolean {
+  return tab === 'overview' || tab === bridge
+}
 
 function Diagnostics({ values }: { readonly values: readonly string[] }): ReactNode {
   if (values.length === 0) return null
@@ -106,9 +150,7 @@ function MarketplaceCatalog({ marketplace, installations, mutationFeedback, t, o
               {visiblePlugins.map(plugin => {
                 const action = `install:${marketplace.name}:${plugin}`
                 const feedback = mutationFeedback[action]
-                const installed = installations.some(installation => (
-                  installation.name === plugin && installation.marketplace === marketplace.name
-                ))
+                const installed = installations.some(installation => installation.name === plugin)
                 const installing = feedback?.status === 'pending'
                 return (
                   <li className={css.pluginRow} data-catalog-plugin key={plugin}>
@@ -164,6 +206,45 @@ export function PluginBridgeContent({
   const checkPiFeedback = mutationFeedback.checkPiUpdates
   const modeFeedback = mutationFeedback.setPiUpdateMode
   const updateAllPiFeedback = mutationFeedback.updateAllPiPackages
+  const [activeBridge, setActiveBridge] = useState<AgentBridgeTab>('overview')
+  const tabListId = useId()
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([])
+  const installations = view.snapshot.installations.filter(installation => (
+    belongsToTab(activeBridge, installationBridge(installation, view.snapshot.marketplaces))
+  ))
+  const configuredMarketplaces = view.snapshot.marketplaces.filter(marketplace => (
+    belongsToTab(activeBridge, bridgeFromIdentity(marketplace.provider))
+  ))
+  const discoveredMarketplaces = view.marketplaces.candidates.filter(marketplace => (
+    belongsToTab(activeBridge, bridgeFromIdentity(marketplace.locator))
+  ))
+  const marketplaceDiagnostics = view.marketplaces.diagnostics.filter(diagnostic => (
+    belongsToTab(activeBridge, diagnosticBridge(diagnostic))
+  ))
+  const discoveredLocal = view.local.candidates.filter(plugin => (
+    belongsToTab(activeBridge, bridgeFromIdentity(plugin.locator))
+  ))
+  const localDiagnostics = view.local.diagnostics.filter(diagnostic => (
+    belongsToTab(activeBridge, diagnosticBridge(diagnostic))
+  ))
+  const marketplaceSectionsVisible = activeBridge === 'overview'
+    || activeBridge === 'codex'
+    || activeBridge === 'claude-code'
+  const piUpdatesVisible = activeBridge === 'overview' || activeBridge === 'pi'
+  const selectBridge = (tab: AgentBridgeTab, index: number): void => {
+    setActiveBridge(tab)
+    tabRefs.current[index]?.focus()
+  }
+  const navigateTabs = (event: KeyboardEvent<HTMLButtonElement>, index: number): void => {
+    let nextIndex: number | undefined
+    if (event.key === 'ArrowRight') nextIndex = (index + 1) % AGENT_BRIDGE_TABS.length
+    if (event.key === 'ArrowLeft') nextIndex = (index - 1 + AGENT_BRIDGE_TABS.length) % AGENT_BRIDGE_TABS.length
+    if (event.key === 'Home') nextIndex = 0
+    if (event.key === 'End') nextIndex = AGENT_BRIDGE_TABS.length - 1
+    if (nextIndex === undefined) return
+    event.preventDefault()
+    selectBridge(AGENT_BRIDGE_TABS[nextIndex]!, nextIndex)
+  }
   return (
     <div className={css.root}>
       <header className={css.header}>
@@ -179,7 +260,36 @@ export function PluginBridgeContent({
       </header>
       <OperationError action="rescan" feedback={rescanFeedback} t={t} />
 
-      <section className={css.section} data-section="pi-updates">
+      <div className={css.bridgeTabs} role="tablist" aria-label={t('bridgeTabs')}>
+        {AGENT_BRIDGE_TABS.map((tab, index) => {
+          const selected = tab === activeBridge
+          return (
+            <button
+              className={css.bridgeTab}
+              data-bridge-tab={tab}
+              id={`${tabListId}-${tab}-tab`}
+              key={tab}
+              role="tab"
+              type="button"
+              aria-controls={`${tabListId}-panel`}
+              aria-selected={selected}
+              tabIndex={selected ? 0 : -1}
+              ref={element => { tabRefs.current[index] = element }}
+              onClick={() => { selectBridge(tab, index) }}
+              onKeyDown={event => { navigateTabs(event, index) }}
+            >{t(AGENT_BRIDGE_TAB_LABELS[tab])}</button>
+          )
+        })}
+      </div>
+
+      <div
+        className={css.bridgePanel}
+        id={`${tabListId}-panel`}
+        role="tabpanel"
+        aria-labelledby={`${tabListId}-${activeBridge}-tab`}
+      >
+
+      {piUpdatesVisible ? <section className={css.section} data-section="pi-updates">
         <Heading label={t('piUpdates')} count={piUpdates.updates.length} />
         <div className={css.updateControls}>
           <label className={css.policy}>
@@ -264,13 +374,13 @@ export function PluginBridgeContent({
             )
           })}
         </ul>
-      </section>
+      </section> : null}
 
       <section className={css.section} data-section="installed">
-        <Heading label={t('installed')} count={view.snapshot.installations.length} />
-        {view.snapshot.installations.length === 0 ? <p className={css.empty}>{t('installedEmpty')}</p> : null}
+        <Heading label={t('installed')} count={installations.length} />
+        {installations.length === 0 ? <p className={css.empty}>{t('installedEmpty')}</p> : null}
         <ul className={css.list}>
-          {view.snapshot.installations.map(installation => (
+          {installations.map(installation => (
             <li className={css.row} key={installation.name}>
               <div className={css.main}>
                 <strong className={css.name}>{installation.name}</strong>
@@ -311,8 +421,8 @@ export function PluginBridgeContent({
         </ul>
       </section>
 
-      <section className={css.section} data-section="configured-marketplaces">
-        <Heading label={t('configuredMarketplaces')} count={view.snapshot.marketplaces.length} />
+      {marketplaceSectionsVisible ? <section className={css.section} data-section="configured-marketplaces">
+        <Heading label={t('configuredMarketplaces')} count={configuredMarketplaces.length} />
         <div className={css.add}>
           <input
             className={css.input}
@@ -333,9 +443,9 @@ export function PluginBridgeContent({
           >{t(addMarketplaceFeedback?.status === 'pending' ? 'working' : 'add')}</button>
         </div>
         <OperationError action="addMarketplace" feedback={addMarketplaceFeedback} t={t} />
-        {view.snapshot.marketplaces.length === 0 ? <p className={css.empty}>{t('configuredEmpty')}</p> : null}
+        {configuredMarketplaces.length === 0 ? <p className={css.empty}>{t('configuredEmpty')}</p> : null}
         <ul className={css.list}>
-          {view.snapshot.marketplaces.map(marketplace => (
+          {configuredMarketplaces.map(marketplace => (
             <MarketplaceCatalog
               key={marketplace.name}
               marketplace={marketplace}
@@ -346,47 +456,62 @@ export function PluginBridgeContent({
             />
           ))}
         </ul>
-      </section>
+      </section> : null}
 
-      <section className={css.section} data-section="discovered-marketplaces">
-        <Heading label={t('discoveredMarketplaces')} count={view.marketplaces.candidates.length} />
-        {view.marketplaces.candidates.length === 0 ? <p className={css.empty}>{t('discoveredMarketplacesEmpty')}</p> : null}
-        <Diagnostics values={view.marketplaces.diagnostics} />
+      {marketplaceSectionsVisible ? <section className={css.section} data-section="discovered-marketplaces">
+        <Heading label={t('discoveredMarketplaces')} count={discoveredMarketplaces.length} />
+        {discoveredMarketplaces.length === 0 ? <p className={css.empty}>{t('discoveredMarketplacesEmpty')}</p> : null}
+        <Diagnostics values={marketplaceDiagnostics} />
         <ul className={css.list}>
-          {view.marketplaces.candidates.map(marketplace => (
-            <li className={css.row} key={marketplace.ref}>
+          {discoveredMarketplaces.map(marketplace => {
+            const action = `importMarketplace:${marketplace.ref}`
+            const feedback = mutationFeedback[action]
+            const imported = view.snapshot.marketplaces.some(item => item.name === marketplace.name)
+            const importing = feedback?.status === 'pending'
+            const importState = imported ? 'imported' : importing ? 'importing' : feedback?.status === 'error' ? 'error' : 'available'
+            return <li className={css.row} key={marketplace.ref}>
               <div className={css.main}>
                 <strong className={css.name}>{marketplace.name}</strong>
                 <span className={css.meta}>
-                  {marketplace.locator} · {marketplace.sourceType}
+                  {marketplace.locator} · {marketplace.sourceType === 'git'
+                    ? t('remoteMarketplaceRegistration')
+                    : marketplace.sourceType}
                   {marketplace.revision === undefined ? '' : ` · ${marketplace.revision}`}
                 </span>
-                <OperationError
-                  action={`importMarketplace:${marketplace.ref}`}
-                  feedback={mutationFeedback[`importMarketplace:${marketplace.ref}`]}
-                  t={t}
-                />
+                {imported ? null : <OperationError action={action} feedback={feedback} t={t} />}
               </div>
               <button
                 className={css.button}
                 data-action="import-marketplace"
+                data-import-state={importState}
                 type="button"
-                disabled={mutationFeedback[`importMarketplace:${marketplace.ref}`]?.status === 'pending'}
-                aria-busy={mutationFeedback[`importMarketplace:${marketplace.ref}`]?.status === 'pending'}
+                disabled={imported || importing}
+                aria-busy={importing}
                 onClick={() => { void onImportMarketplace(marketplace.ref) }}
-              >{t(mutationFeedback[`importMarketplace:${marketplace.ref}`]?.status === 'pending' ? 'working' : 'import')}</button>
+              >{t(imported
+                ? 'imported'
+                : importing
+                  ? marketplace.sourceType === 'git' ? 'downloading' : 'working'
+                  : feedback?.status === 'error'
+                    ? 'retry'
+                    : marketplace.sourceType === 'git' ? 'add' : 'import')}</button>
             </li>
-          ))}
+          })}
         </ul>
-      </section>
+      </section> : null}
 
       <section className={css.section} data-section="discovered-local">
-        <Heading label={t('discoveredLocal')} count={view.local.candidates.length} />
-        {view.local.candidates.length === 0 ? <p className={css.empty}>{t('discoveredLocalEmpty')}</p> : null}
-        <Diagnostics values={view.local.diagnostics} />
+        <Heading label={t('discoveredLocal')} count={discoveredLocal.length} />
+        {discoveredLocal.length === 0 ? <p className={css.empty}>{t('discoveredLocalEmpty')}</p> : null}
+        <Diagnostics values={localDiagnostics} />
         <ul className={css.list}>
-          {view.local.candidates.map(plugin => (
-            <li className={css.row} key={plugin.ref}>
+          {discoveredLocal.map(plugin => {
+            const action = `importLocal:${plugin.ref}`
+            const feedback = mutationFeedback[action]
+            const imported = view.snapshot.installations.some(installation => installation.name === plugin.name)
+            const importing = feedback?.status === 'pending'
+            const importState = imported ? 'imported' : importing ? 'importing' : feedback?.status === 'error' ? 'error' : 'available'
+            return <li className={css.row} key={plugin.ref}>
               <div className={css.main}>
                 <strong className={css.name}>{plugin.name}</strong>
                 <span className={css.meta}>
@@ -399,24 +524,22 @@ export function PluginBridgeContent({
                     plugin.enabled === undefined ? undefined : t(plugin.enabled ? 'foreignEnabled' : 'foreignDisabled'),
                   ].filter((value): value is string => value !== undefined).join(' · ')}
                 </span>
-                <OperationError
-                  action={`importLocal:${plugin.ref}`}
-                  feedback={mutationFeedback[`importLocal:${plugin.ref}`]}
-                  t={t}
-                />
+                {imported ? null : <OperationError action={action} feedback={feedback} t={t} />}
               </div>
               <button
                 className={css.button}
                 data-action="import-local"
+                data-import-state={importState}
                 type="button"
-                disabled={mutationFeedback[`importLocal:${plugin.ref}`]?.status === 'pending'}
-                aria-busy={mutationFeedback[`importLocal:${plugin.ref}`]?.status === 'pending'}
+                disabled={imported || importing}
+                aria-busy={importing}
                 onClick={() => { void onImportLocal(plugin.ref) }}
-              >{t(mutationFeedback[`importLocal:${plugin.ref}`]?.status === 'pending' ? 'working' : 'import')}</button>
+              >{t(imported ? 'imported' : importing ? 'working' : feedback?.status === 'error' ? 'retry' : 'import')}</button>
             </li>
-          ))}
+          })}
         </ul>
       </section>
+      </div>
     </div>
   )
 }

@@ -1,5 +1,6 @@
 import type { ActivationInspection, ActivationRequirement, DshPluginRow, InstalledPluginCandidate, MarketplaceRegistrationCandidate, PackageComponent, PluginBridgeKernel, RuntimeRequirement } from './kernel.js';
 import type { MarketplacePluginEntry } from './marketplaces/types.js';
+declare const CATALOG_PATHS: readonly [".agents/plugins/marketplace.json", ".claude-plugin/marketplace.json", "marketplace.json"];
 /** Minimal Loader face used to mount each materialized row independently. */
 export interface BridgeLoader {
     create(row: DshPluginRow): Promise<string>;
@@ -140,7 +141,7 @@ export declare class PluginBridgeManager {
     /** Restore the exact stored row plans before accepting management commands. */
     start(): Promise<void>;
     /** Register one local Codex or Claude marketplace directory. */
-    addMarketplace(location: string): Promise<RegisteredMarketplace>;
+    addMarketplace(location: string, preferredManifestPath?: typeof CATALOG_PATHS[number]): Promise<RegisteredMarketplace>;
     /** Acquire and activate one `plugin@marketplace` selection transactionally. */
     install(spec: string): Promise<InstalledPlugin>;
     /** Review current gated component definitions without trusting or activating them. */
@@ -171,4 +172,5 @@ export declare class PluginBridgeManager {
     private writeState;
     private moveToTrash;
 }
+export {};
 //# sourceMappingURL=manager.d.ts.map

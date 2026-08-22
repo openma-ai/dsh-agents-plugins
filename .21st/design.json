@@ -40,7 +40,8 @@
     ]
   },
   "decisions": [
-    "Agent Plugins is an order-5 child tab inside Settings > Plugins, not a new top-level route."
+    "Agent Plugins is an order-5 child tab inside Settings > Plugins, not a new top-level route.",
+    "The bridge surface uses Overview, Codex, Claude Code, and Pi secondary tabs; Overview preserves the combined inventory while agent tabs isolate source-specific state and diagnostics."
   ],
   "evidence": [
     "/Users/minimax/oos-proj/deepseek-harness/packages/client/ui-settings-plugin-inventory"
