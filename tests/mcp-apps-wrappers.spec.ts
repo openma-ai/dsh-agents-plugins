@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
 import test from 'node:test'
+import { pathToFileURL } from 'node:url'
 
 const requireFromBridge = createRequire(new URL('../package.json', import.meta.url))
 const requireFromMcpApps = createRequire(
@@ -51,7 +52,7 @@ for (const fixture of [
 
     assert.equal(wrapper.name, fixture.name)
     assert.deepEqual(wrapper.inject, ['loader'])
-    assert.deepEqual(imported, [requireFromMcpApps.resolve(fixture.dependency)])
+    assert.deepEqual(imported, [pathToFileURL(requireFromMcpApps.resolve(fixture.dependency)).href])
     assert.deepEqual(mounted, [{ plugin, config }])
   })
 }
